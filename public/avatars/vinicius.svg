@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="vinicius">
+  <defs>
+    <clipPath id="cp_vinicius"><circle cx="60" cy="60" r="59"/></clipPath>
+    <!-- Jersey gradient -->
+    <linearGradient id="bg_vinicius" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#00843D"/>
+      <stop offset="100%" stop-color="#004D25"/>
+    </linearGradient>
+    <!-- Skin gradient for depth -->
+    <radialGradient id="sk_vinicius" cx="50%" cy="38%" r="55%">
+      <stop offset="0%" stop-color="#7A4420"/>
+      <stop offset="75%" stop-color="#7A4420"/>
+      <stop offset="100%" stop-color="#4A2508"/>
+    </radialGradient>
+    <!-- Jersey highlight -->
+    <linearGradient id="sg_vinicius" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.12"/>
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.08"/>
+    </linearGradient>
+  </defs>
+
+  <g clip-path="url(#cp_vinicius)">
+    <!-- Jersey background -->
+    <rect width="120" height="120" fill="url(#bg_vinicius)"/>
+    <rect width="120" height="120" fill="url(#sg_vinicius)"/>
+
+    <!-- Jersey body bottom half -->
+    <path d="M0 80 L0 120 L120 120 L120 80 Q100 74 85 72 L60 76 L35 72 Q20 74 0 80Z" fill="#004D25" opacity="0.6"/>
+
+    <!-- Jersey collar -->
+    <path d="M44 86 Q52 95 60 96 Q68 95 76 86 L72 84 Q66 92 60 93 Q54 92 48 84Z" fill="#004D25"/>
+    <path d="M48 84 Q54 90 60 91 Q66 90 72 84" fill="none" stroke="white" stroke-width="1.2" opacity="0.5"/>
+
+    <!-- Jersey number -->
+    <text x="60" y="114" text-anchor="middle" font-family="Arial Black, sans-serif"
+          font-size="11" font-weight="900" fill="white" opacity="0.85">7</text>
+
+    <!-- Hair back layer -->
+    <g>
+        <circle cx="33" cy="46" r="12" fill="#180E04"/>
+        <circle cx="43" cy="34" r="13" fill="#180E04"/>
+        <circle cx="60" cy="28" r="14" fill="#180E04"/>
+        <circle cx="77" cy="34" r="13" fill="#180E04"/>
+        <circle cx="87" cy="46" r="12" fill="#180E04"/>
+      </g>
+
+    <!-- Neck shadow -->
+    <ellipse cx="60" cy="84" rx="12" ry="5" fill="#4A2508" opacity="0.5"/>
+
+    <!-- Neck -->
+    <rect x="52" y="74" width="16" height="18" rx="5" fill="url(#sk_vinicius)"/>
+
+    <!-- Ear left -->
+    <ellipse cx="33" cy="60" rx="5.5" ry="7" fill="url(#sk_vinicius)"/>
+    <ellipse cx="34" cy="60" rx="2.5" ry="4" fill="#4A2508" opacity="0.3"/>
+
+    <!-- Ear right -->
+    <ellipse cx="87" cy="60" rx="5.5" ry="7" fill="url(#sk_vinicius)"/>
+    <ellipse cx="86" cy="60" rx="2.5" ry="4" fill="#4A2508" opacity="0.3"/>
+
+    <!-- Face -->
+    <ellipse cx="60" cy="57" rx="27" ry="31" fill="url(#sk_vinicius)"/>
+
+    <!-- Face shadow (chin/jaw) -->
+    <ellipse cx="60" cy="80" rx="20" ry="8" fill="#4A2508" opacity="0.25"/>
+
+    <!-- Hair front layer -->
+    <g>
+        <circle cx="34" cy="45" r="11" fill="#0A0602"/>
+        <circle cx="44" cy="33" r="12" fill="#0A0602"/>
+        <circle cx="60" cy="27" r="13" fill="#0A0602"/>
+        <circle cx="76" cy="33" r="12" fill="#0A0602"/>
+        <circle cx="86" cy="45" r="11" fill="#0A0602"/>
+        <ellipse cx="60" cy="38" rx="8" ry="5" fill="#0A0602"/>
+      </g>
+
+    <!-- Eyebrow left -->
+    <path d="M42 48 Q48 44 54 46" stroke="#0A0602" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+
+    <!-- Eyebrow right -->
+    <path d="M66 46 Q72 44 78 48" stroke="#0A0602" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+
+    <!-- Eyes -->
+    
+    <ellipse cx="48" cy="57" rx="7" ry="5.5" fill="white"/>
+    <circle cx="48" cy="57" r="4" fill="#1A0C00"/>
+    <circle cx="48" cy="57" r="2.4" fill="#111"/>
+    <circle cx="49.5" cy="55.5" r="1.2" fill="white" opacity="0.9"/>
+    <ellipse cx="48" cy="57" rx="7" ry="5.5" fill="none" stroke="#33333340" stroke-width="0.6"/>
+    
+    <ellipse cx="72" cy="57" rx="7" ry="5.5" fill="white"/>
+    <circle cx="72" cy="57" r="4" fill="#1A0C00"/>
+    <circle cx="72" cy="57" r="2.4" fill="#111"/>
+    <circle cx="73.5" cy="55.5" r="1.2" fill="white" opacity="0.9"/>
+    <ellipse cx="72" cy="57" rx="7" ry="5.5" fill="none" stroke="#33333340" stroke-width="0.6"/>
+
+    <!-- Nose -->
+    
+    <path d="M56 60 Q58 70 56 74 Q59 77 60 77 Q61 77 64 74 Q62 70 64 60" fill="#4A2508" stroke="#00000018" stroke-width="0.8" stroke-linejoin="round" fill-rule="evenodd"/>
+    <ellipse cx="57" cy="73.5" rx="3" ry="2" fill="#4A2508" stroke="#00000025" stroke-width="0.6"/>
+    <ellipse cx="63" cy="73.5" rx="3" ry="2" fill="#4A2508" stroke="#00000025" stroke-width="0.6"/>
+
+    <!-- Mouth -->
+    <path d="M50 80 Q56 85 60 85 Q64 85 70 80" stroke="#8B4A3A" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    <path d="M54 80 Q60 83 66 80" stroke="#C07060" stroke-width="0.8" fill="none" stroke-linecap="round" opacity="0.6"/>
+
+    <!-- Beard -->
+    
+
+    <!-- Subtle face highlight (forehead) -->
+    <ellipse cx="60" cy="40" rx="14" ry="8" fill="white" opacity="0.06"/>
+  </g>
+
+  <!-- Rim -->
+  <circle cx="60" cy="60" r="57" fill="none" stroke="white" stroke-width="2.5" opacity="0.7"/>
+  <circle cx="60" cy="60" r="57" fill="none" stroke="#004D25" stroke-width="1" opacity="0.3"/>
+</svg>
