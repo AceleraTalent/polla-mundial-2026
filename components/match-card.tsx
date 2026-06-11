@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { savePrediction } from "@/app/actions/predictions";
@@ -54,18 +54,19 @@ function PredictionsModal({
   onClose: () => void;
 }) {
   const [preds, setPreds] = useState<MatchPred[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const [fetchErr, setFetchErr] = useState<string | null>(null);
   const [fetching, startFetch] = useTransition();
   const [search, setSearch] = useState("");
 
-  // Fetch on first render
-  if (!loaded && !fetching) {
+  // Fetch once on mount (useEffect avoids calling during render phase)
+  useEffect(() => {
     startFetch(async () => {
       const res = await fetchMatchPredictions(match.id);
       if (res.ok) setPreds(res.data);
-      setLoaded(true);
+      else setFetchErr(res.error);
     });
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [match.id]);
 
   const filtered = preds.filter((p) =>
     (p.nickname ?? "").toLowerCase().includes(search.toLowerCase()),
@@ -177,7 +178,13 @@ function PredictionsModal({
               Cargando pronósticos…
             </div>
           )}
-          {!fetching && sorted.length === 0 && (
+          {!fetching && fetchErr && (
+            <div style={{ padding: "24px", textAlign: "center", color: "#EF4444", fontSize: 13 }}>
+              No se pudieron cargar los pronósticos.<br/>
+              <span style={{ color: "#9CA3AF", fontSize: 12 }}>Asegúrate de haber corrido la función SQL en Supabase.</span>
+            </div>
+          )}
+          {!fetching && !fetchErr && sorted.length === 0 && (
             <div style={{ padding: "24px", textAlign: "center", color: "#9CA3AF", fontSize: 14 }}>
               {search ? "Sin resultados para esa búsqueda" : "Nadie ha hecho su pronóstico aún"}
             </div>
