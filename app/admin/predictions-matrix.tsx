@@ -40,24 +40,6 @@ export function PredictionsMatrix({
     .filter((p) => p.nickname.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => b.total_points - a.total_points);
 
-  // Build lookup: user_id → match_id → prediction
-  const predLookup = new Map<string, Map<number, { home: number; away: number }>>();
-  for (const player of players) {
-    const matchMap = new Map<number, { home: number; away: number }>();
-    for (const pred of player.predictions) {
-      // find the match id — we need to reconstruct from home/away names
-      // Actually predictions have matchday+group+home+away, we need to find by match identity
-    }
-    predLookup.set(player.user_id, matchMap);
-  }
-
-  // Better: build lookup from player.predictions array using match identity
-  // We'll match by (matchday, group, home.name) since we don't have match_id in PredictionVM
-  // Instead, let's index matches by (home name + away name)
-  const matchByKey = new Map(
-    matches.map((m) => [`${m.home.name}|${m.away.name}`, m]),
-  );
-
   // Build pred lookup: user_id → "home|away" → prediction
   const predByUserAndMatch = new Map<string, Map<string, { home: number; away: number }>>();
   for (const player of players) {
