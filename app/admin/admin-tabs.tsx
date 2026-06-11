@@ -8,6 +8,7 @@ import { ResultsEditor } from "./results-editor";
 import { TournamentEditor } from "./tournament-editor";
 import { WindowsEditor } from "./windows-editor";
 import { PlayersTab, type PlayerVM } from "./players-tab";
+import { PredictionsMatrix } from "./predictions-matrix";
 
 export type AdminMatchVM = {
   id: number;
@@ -24,20 +25,23 @@ export function AdminTabs({
   tournament,
   windows,
   players,
+  colombiaMap,
 }: {
   teams: Team[];
   matches: AdminMatchVM[];
   tournament: TournamentResults | null;
   windows: PhaseWindow[];
   players: PlayerVM[];
+  colombiaMap: Map<number, boolean>;
 }) {
   return (
     <Tabs defaultValue="results">
-      <TabsList className="grid w-full grid-cols-5">
+      <TabsList className="grid w-full grid-cols-6">
         <TabsTrigger value="results">Resultados</TabsTrigger>
+        <TabsTrigger value="matrix">Predicciones</TabsTrigger>
+        <TabsTrigger value="players">Jugadores</TabsTrigger>
         <TabsTrigger value="tournament">Torneo</TabsTrigger>
         <TabsTrigger value="windows">Ventanas</TabsTrigger>
-        <TabsTrigger value="players">Jugadores</TabsTrigger>
         <TabsTrigger value="export">Export</TabsTrigger>
       </TabsList>
 
@@ -55,6 +59,10 @@ export function AdminTabs({
 
       <TabsContent value="windows" className="mt-4">
         <WindowsEditor windows={windows} />
+      </TabsContent>
+
+      <TabsContent value="matrix" className="mt-4">
+        <PredictionsMatrix players={players} matches={matches} colombiaMap={colombiaMap} />
       </TabsContent>
 
       <TabsContent value="players" className="mt-4">

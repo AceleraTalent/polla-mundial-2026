@@ -75,6 +75,13 @@ export default async function AdminPage() {
     ]),
   );
 
+  const colombiaMap = new Map(
+    (matches ?? []).map((m) => [
+      m.id,
+      m.home_team_id === colombiaId || m.away_team_id === colombiaId,
+    ]),
+  );
+
   // Build a map: match_id → result
   const specialTeamName = (id: number | null) => (id ? (teamMap.get(id)?.name ?? null) : null);
 
@@ -145,6 +152,7 @@ export default async function AdminPage() {
           tournament={tournament ?? null}
           windows={windows ?? []}
           players={players}
+          colombiaMap={colombiaMap}
         />
       </main>
     </div>
