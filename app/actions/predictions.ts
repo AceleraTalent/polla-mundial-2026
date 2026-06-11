@@ -74,11 +74,30 @@ export type FetchPredsResult =
   | { ok: false; error: string };
 
 export async function fetchMatchPredictions(matchId: number): Promise<FetchPredsResult> {
-  const supabase = createClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any).rpc("get_match_predictions", {
-    p_match_id: matchId,
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+  const { createClient: createAdmin } = await import("@supabase/supabase-js");
+  const admin = createAdmin(url, serviceKey);
+
+  const { data, error } = await admin
+    .from("predictions")
+    .select("user_id, home_score, away_score, profiles!inner(nickname, avatar_id)")
+    .eq("match_id", matchId)
+    .order("user_id");
+
+  if (error) return { ok: false, error: error.message };
+
+  const rows = (data ?? []).map((r) => {
+    const profile = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
+    return {
+      user_id: r.user_id,
+      nickname: (profile as { nickname: string; avatar_id: string | null })?.nickname ?? "",
+      avatar_id: (profile as { nickname: string; avatar_id: string | null })?.avatar_id ?? null,
+      home_score: r.home_score,
+      away_score: r.away_score,
+    };
   });
-  if (error) return { ok: false, error: (error as { message: string }).message };
-  return { ok: true, data: ((data as unknown) ?? []) as MatchPred[] };
+
+  return { ok: true, data: rows };
 }
