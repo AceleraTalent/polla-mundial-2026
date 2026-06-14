@@ -48,7 +48,9 @@ export async function updateSession(request: NextRequest) {
   const isPublic =
     pathname.startsWith("/login") ||
     pathname.startsWith("/auth") ||
-    pathname.startsWith("/reglas");
+    pathname.startsWith("/reglas") ||
+    pathname.startsWith("/api/sync-results") ||
+    pathname.startsWith("/api/auto-sync");
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();

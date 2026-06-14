@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 
 const LINKS = [
   { href: "/predicciones", label: "Partidos" },
+  { href: "/partidos", label: "Horarios" },
   { href: "/especiales", label: "Especiales" },
   { href: "/leaderboard", label: "Tabla" },
   { href: "/reglas", label: "Reglas" },
