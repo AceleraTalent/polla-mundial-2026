@@ -75,7 +75,6 @@ export function LeaderboardTable({
             <TableHead className="text-center">Partidos</TableHead>
             <TableHead className="text-center">Especiales</TableHead>
             <TableHead className="text-right">Total</TableHead>
-            <TableHead className="w-16" />
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -84,7 +83,14 @@ export function LeaderboardTable({
             const avatar = getAvatar(row.avatar_id);
             const isMe = row.user_id === currentUserId;
             return (
-              <TableRow key={row.user_id} className={cn(isMe && "bg-emerald-50")}>
+              <TableRow
+                key={row.user_id}
+                onClick={() => setSelected({ userId: row.user_id, nickname: row.nickname ?? "—" })}
+                className={cn(
+                  "cursor-pointer hover:bg-gray-50 transition-colors",
+                  isMe && "bg-emerald-50 hover:bg-emerald-50/80",
+                )}
+              >
                 <TableCell className="text-center font-semibold tabular-nums">
                   {medal(rank) ?? rank}
                 </TableCell>
@@ -111,14 +117,6 @@ export function LeaderboardTable({
                 </TableCell>
                 <TableCell className="text-right text-lg font-bold tabular-nums">
                   {row.total_points}
-                </TableCell>
-                <TableCell className="text-right">
-                  <button
-                    onClick={() => setSelected({ userId: row.user_id, nickname: row.nickname ?? "—" })}
-                    className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-600 hover:border-emerald-300 hover:text-emerald-700 transition-colors"
-                  >
-                    Ver
-                  </button>
                 </TableCell>
               </TableRow>
             );
