@@ -15,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PlayerBreakdownModal } from "@/components/player-breakdown-modal";
 
 const medal = (rank: number) =>
   rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : null;
@@ -27,6 +28,7 @@ export function LeaderboardTable({
   currentUserId: string;
 }) {
   const [rows, setRows] = useState<LeaderboardRow[]>(initialRows);
+  const [selected, setSelected] = useState<{ userId: string; nickname: string } | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -56,6 +58,14 @@ export function LeaderboardTable({
   }
 
   return (
+    <>
+    {selected && (
+      <PlayerBreakdownModal
+        userId={selected.userId}
+        nickname={selected.nickname}
+        onClose={() => setSelected(null)}
+      />
+    )}
     <div className="overflow-hidden rounded-lg border bg-white">
       <Table>
         <TableHeader>
@@ -65,6 +75,7 @@ export function LeaderboardTable({
             <TableHead className="text-center">Partidos</TableHead>
             <TableHead className="text-center">Especiales</TableHead>
             <TableHead className="text-right">Total</TableHead>
+            <TableHead className="w-16" />
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -101,11 +112,20 @@ export function LeaderboardTable({
                 <TableCell className="text-right text-lg font-bold tabular-nums">
                   {row.total_points}
                 </TableCell>
+                <TableCell className="text-right">
+                  <button
+                    onClick={() => setSelected({ userId: row.user_id, nickname: row.nickname ?? "—" })}
+                    className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-600 hover:border-emerald-300 hover:text-emerald-700 transition-colors"
+                  >
+                    Ver
+                  </button>
+                </TableCell>
               </TableRow>
             );
           })}
         </TableBody>
       </Table>
     </div>
+    </>
   );
 }
