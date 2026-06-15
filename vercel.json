@@ -1,3 +1,9 @@
 {
-  "name": "polla-mundial-2026"
+  "name": "polla-mundial-2026",
+  "crons": [
+    {
+      "path": "/api/auto-sync",
+      "schedule": "*/15 * * * *"
+    }
+  ]
 }
