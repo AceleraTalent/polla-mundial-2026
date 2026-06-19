@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import type { LeaderboardRow } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const admin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
