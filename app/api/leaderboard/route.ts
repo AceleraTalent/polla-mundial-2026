@@ -1,13 +1,8 @@
-import { requireOnboarded } from "@/lib/auth-helpers";
+import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { LeaderboardTable } from "@/components/leaderboard-table";
 import type { LeaderboardRow } from "@/lib/types";
 
-export const dynamic = "force-dynamic";
-
-export default async function LeaderboardPage() {
-  const { user } = await requireOnboarded();
-
+export async function GET() {
   const admin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -29,6 +24,7 @@ export default async function LeaderboardPage() {
 
   const resultMap = new Map(results.map((r) => [r.match_id, r]));
 
+  // Colombia match IDs (double points)
   const colTeam = teams.find((t) => t.code === "COL");
   const colMatchIds = new Set(
     matches
@@ -36,12 +32,14 @@ export default async function LeaderboardPage() {
       .map((m) => m.id),
   );
 
+  // Group predictions by user
   const userPreds = new Map<string, typeof predictions>();
   for (const p of predictions) {
     if (!userPreds.has(p.user_id)) userPreds.set(p.user_id, []);
     userPreds.get(p.user_id)!.push(p);
   }
 
+  // Calculate match points per user
   const matchPts = new Map<string, number>();
   for (const [uid, preds] of userPreds) {
     let total = 0;
@@ -61,6 +59,7 @@ export default async function LeaderboardPage() {
     matchPts.set(uid, total);
   }
 
+  // Build leaderboard rows
   const rows: LeaderboardRow[] = profiles.map((pr) => {
     const mp = matchPts.get(pr.id) ?? 0;
     return {
@@ -75,15 +74,5 @@ export default async function LeaderboardPage() {
 
   rows.sort((a, b) => b.total_points - a.total_points || (a.nickname ?? "").localeCompare(b.nickname ?? ""));
 
-  return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-extrabold">Tabla de posiciones</h1>
-        <p className="text-sm text-muted-foreground">
-          Se actualiza en vivo cuando se cargan resultados.
-        </p>
-      </div>
-      <LeaderboardTable initialRows={rows} currentUserId={user.id} />
-    </div>
-  );
+  return NextResponse.json(rows);
 }

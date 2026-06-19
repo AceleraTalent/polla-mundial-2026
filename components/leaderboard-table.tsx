@@ -34,8 +34,11 @@ export function LeaderboardTable({
     const supabase = createClient();
 
     const refresh = async () => {
-      const { data } = await supabase.rpc("get_leaderboard");
-      if (data) setRows(data);
+      const res = await fetch("/api/leaderboard");
+      if (res.ok) {
+        const data = await res.json();
+        setRows(data);
+      }
     };
 
     const channel = supabase
