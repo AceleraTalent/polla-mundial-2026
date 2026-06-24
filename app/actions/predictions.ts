@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { createClient } from "@/lib/supabase/server";
@@ -56,6 +57,7 @@ export async function savePrediction(input: {
   if (error) {
     return { ok: false, error: "No se pudo guardar. Intenta de nuevo." };
   }
+  revalidatePath("/predicciones");
   return { ok: true };
 }
 

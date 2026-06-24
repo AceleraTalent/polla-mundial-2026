@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { GroupStandings } from "@/components/group-standings";
 import { MatchCard, type MatchVM } from "@/components/match-card";
 import { statusLabel, type WindowStatus } from "@/lib/locks";
 import { Badge } from "@/components/ui/badge";
@@ -26,14 +27,28 @@ export function PrediccionesView({
   matches: MatchVM[];
 }) {
   const [groupFilter, setGroupFilter] = useState<string>("Todos");
+  const [localMatches, setLocalMatches] = useState<MatchVM[]>(matches);
 
-  const groups = [...new Set(matches.map((m) => m.group))].sort();
+  useEffect(() => {
+    setLocalMatches(matches);
+  }, [matches]);
+
+  const groups = [...new Set(localMatches.map((m) => m.group))].sort();
   const tabs = ["Todos", ...groups];
 
   const filtered =
     groupFilter === "Todos"
-      ? matches
-      : matches.filter((m) => m.group === groupFilter);
+      ? localMatches
+      : localMatches.filter((m) => m.group === groupFilter);
+
+  function updatePrediction(matchId: number, prediction: { home: number; away: number }) {
+    setLocalMatches((current) =>
+      current.map((m) => (m.id === matchId ? { ...m, prediction } : m)),
+    );
+  }
+
+  const standingsGroups =
+    groupFilter === "Todos" ? groups : groups.filter((g) => g === groupFilter);
 
   return (
     <div className="space-y-6">
@@ -72,6 +87,24 @@ export function PrediccionesView({
             </button>
           );
         })}
+      </div>
+
+      <div
+        className={cn(
+          "grid gap-3",
+          groupFilter === "Todos"
+            ? "grid-cols-1 lg:grid-cols-2"
+            : "grid-cols-1",
+        )}
+      >
+        {standingsGroups.map((g) => (
+          <GroupStandings
+            key={g}
+            group={g}
+            matches={localMatches.filter((m) => m.group === g)}
+            compact={groupFilter === "Todos"}
+          />
+        ))}
       </div>
 
       {/* ── Matchday sections ── */}
@@ -113,7 +146,12 @@ export function PrediccionesView({
                     {mdMatches
                       .filter((m) => m.group === g)
                       .map((m) => (
-                        <MatchCard key={m.id} match={m} editable={editable} />
+                        <MatchCard
+                          key={m.id}
+                          match={m}
+                          editable={editable}
+                          onPredictionSaved={updatePrediction}
+                        />
                       ))}
                   </div>
                 </div>

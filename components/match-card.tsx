@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -262,16 +263,40 @@ function PredictionsModal({
 
 // ─── Main MatchCard ──────────────────────────────────────────────────────────
 
-export function MatchCard({ match, editable }: { match: MatchVM; editable: boolean }) {
+export function MatchCard({
+  match,
+  editable,
+  onPredictionSaved,
+}: {
+  match: MatchVM;
+  editable: boolean;
+  onPredictionSaved?: (matchId: number, prediction: { home: number; away: number }) => void;
+}) {
+  const router = useRouter();
+  const predictionHome = match.prediction?.home;
+  const predictionAway = match.prediction?.away;
   const [home, setHome] = useState<string>(
-    match.prediction ? String(match.prediction.home) : "",
+    predictionHome !== undefined ? String(predictionHome) : "",
   );
   const [away, setAway] = useState<string>(
-    match.prediction ? String(match.prediction.away) : "",
+    predictionAway !== undefined ? String(predictionAway) : "",
   );
   const [saveStatus, setSaveStatus] = useState<SaveState>("idle");
   const [modalOpen, setModalOpen] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mounted = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    setHome(predictionHome !== undefined ? String(predictionHome) : "");
+    setAway(predictionAway !== undefined ? String(predictionAway) : "");
+    setSaveStatus("idle");
+  }, [match.id, predictionHome, predictionAway]);
 
   function scheduleSave(nextHome: string, nextAway: string) {
     if (!editable) return;
@@ -285,9 +310,16 @@ export function MatchCard({ match, editable }: { match: MatchVM; editable: boole
         away: Number(nextAway),
       });
       if (res.ok) {
-        setSaveStatus("saved");
+        onPredictionSaved?.(match.id, {
+          home: Number(nextHome),
+          away: Number(nextAway),
+        });
+        if (mounted.current) {
+          setSaveStatus("saved");
+          router.refresh();
+        }
       } else {
-        setSaveStatus("error");
+        if (mounted.current) setSaveStatus("error");
         toast.error(res.error);
       }
     }, 600);
