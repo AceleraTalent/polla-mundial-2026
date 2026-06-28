@@ -73,6 +73,15 @@ export default async function LlavePage() {
         </p>
       </div>
 
+      {hasAnyMatches && (
+        <a
+          href="/predicciones"
+          className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white shadow hover:bg-emerald-700 transition-colors"
+        >
+          ✏️ Ingresar mis predicciones →
+        </a>
+      )}
+
       {!hasAnyMatches ? (
         <div className="rounded-xl border bg-white p-10 text-center text-muted-foreground">
           <p className="text-lg font-semibold">Próximamente…</p>
