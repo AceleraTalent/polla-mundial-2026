@@ -263,16 +263,6 @@ export function BracketView({ matches }: { matches: BracketMatchVM[] }) {
 
   const finalMatch = getMatch(slotMap, "final", 1);
 
-  // Column widths for label row
-  const roundWidths = {
-    r32:  CARD_W,
-    conn: CONN_W,
-    r16:  CARD_W,
-    qf:   CARD_W,
-    sf:   CARD_W,
-    final: CARD_W,
-  };
-
   return (
     <div style={{ overflowX: "auto", paddingBottom: 16 }}>
       {/* Round labels row */}
