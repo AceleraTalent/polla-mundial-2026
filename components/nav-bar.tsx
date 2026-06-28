@@ -6,6 +6,7 @@ import { getAvatar } from "@/lib/avatars";
 import { Button } from "@/components/ui/button";
 
 const LINKS = [
+  { href: "/llave", label: "🏆 Llave" },
   { href: "/predicciones", label: "Partidos" },
   { href: "/partidos", label: "Horarios" },
   { href: "/especiales", label: "Especiales" },

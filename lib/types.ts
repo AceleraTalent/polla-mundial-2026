@@ -26,6 +26,7 @@ export type Match = {
   stage: "group" | "r32" | "r16" | "qf" | "sf" | "final";
   group_letter: string | null;
   matchday: number | null;
+  bracket_slot: number | null;
   home_team_id: number;
   away_team_id: number;
   kickoff_at: string;
@@ -115,6 +116,7 @@ export type Database = {
       };
       is_admin: { Args: Record<string, never>; Returns: boolean };
       is_phase_open: { Args: { p_key: string }; Returns: boolean };
+      is_knockout_match_open: { Args: { p_match_id: number }; Returns: boolean };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

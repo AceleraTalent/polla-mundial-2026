@@ -32,16 +32,25 @@ export async function savePrediction(input: {
 
   const { data: match } = await supabase
     .from("matches")
-    .select("matchday")
+    .select("matchday, stage")
     .eq("id", matchId)
     .maybeSingle();
-  if (!match?.matchday) return { ok: false, error: "Partido no encontrado." };
+  if (!match) return { ok: false, error: "Partido no encontrado." };
 
-  const { data: open } = await supabase.rpc("is_phase_open", {
-    p_key: `md${match.matchday}`,
-  });
-  if (!open) {
-    return { ok: false, error: "Esta jornada está cerrada." };
+  if (match.stage === "group") {
+    if (!match.matchday) return { ok: false, error: "Partido no encontrado." };
+    const { data: open } = await supabase.rpc("is_phase_open", {
+      p_key: `md${match.matchday}`,
+    });
+    if (!open) return { ok: false, error: "Esta jornada está cerrada." };
+  } else {
+    // Eliminatoria: cierra 1 hora antes del pitazo
+    const { data: open } = await supabase.rpc("is_knockout_match_open", {
+      p_match_id: matchId,
+    });
+    if (!open) {
+      return { ok: false, error: "Este partido ya cerró (cierra 1h antes del pitazo)." };
+    }
   }
 
   const { error } = await supabase.from("predictions").upsert(

@@ -9,6 +9,7 @@ import { TournamentEditor } from "./tournament-editor";
 import { WindowsEditor } from "./windows-editor";
 import { PlayersTab, type PlayerVM } from "./players-tab";
 import { PredictionsMatrix } from "./predictions-matrix";
+import { R32Editor, type KnockoutMatchVM } from "./r32-editor";
 
 export type AdminMatchVM = {
   id: number;
@@ -22,6 +23,7 @@ export type AdminMatchVM = {
 export function AdminTabs({
   teams,
   matches,
+  knockoutMatches,
   tournament,
   windows,
   players,
@@ -29,6 +31,7 @@ export function AdminTabs({
 }: {
   teams: Team[];
   matches: AdminMatchVM[];
+  knockoutMatches: KnockoutMatchVM[];
   tournament: TournamentResults | null;
   windows: PhaseWindow[];
   players: PlayerVM[];
@@ -36,8 +39,9 @@ export function AdminTabs({
 }) {
   return (
     <Tabs defaultValue="results">
-      <TabsList className="grid w-full grid-cols-6">
-        <TabsTrigger value="results">Resultados</TabsTrigger>
+      <TabsList className="grid w-full grid-cols-7">
+        <TabsTrigger value="results">Grupos</TabsTrigger>
+        <TabsTrigger value="r32">Eliminatoria</TabsTrigger>
         <TabsTrigger value="matrix">Predicciones</TabsTrigger>
         <TabsTrigger value="players">Jugadores</TabsTrigger>
         <TabsTrigger value="tournament">Torneo</TabsTrigger>
@@ -47,6 +51,14 @@ export function AdminTabs({
 
       <TabsContent value="results" className="mt-4">
         <ResultsEditor matches={matches} />
+      </TabsContent>
+
+      <TabsContent value="r32" className="mt-4">
+        <Card>
+          <CardContent className="pt-6">
+            <R32Editor teams={teams} matches={knockoutMatches} />
+          </CardContent>
+        </Card>
       </TabsContent>
 
       <TabsContent value="tournament" className="mt-4">

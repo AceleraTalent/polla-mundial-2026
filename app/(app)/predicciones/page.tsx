@@ -14,6 +14,7 @@ const locksFmt = new Intl.DateTimeFormat("es", {
 });
 
 const COLOMBIA_CODE = "COL";
+const CUTOFF_MS = 60 * 60 * 1000; // 1 hour in ms
 
 export default async function PrediccionesPage() {
   const { user } = await requireOnboarded();
@@ -21,7 +22,8 @@ export default async function PrediccionesPage() {
 
   const [
     { data: teams },
-    { data: matches },
+    { data: groupMatches },
+    { data: knockoutMatches },
     { data: preds },
     { data: windows },
     { data: results },
@@ -29,10 +31,16 @@ export default async function PrediccionesPage() {
     supabase.from("teams").select("id,name,flag_emoji,code"),
     supabase
       .from("matches")
-      .select("id,matchday,group_letter,kickoff_at,home_team_id,away_team_id")
+      .select("id,matchday,group_letter,kickoff_at,home_team_id,away_team_id,stage")
       .eq("stage", "group")
       .order("matchday")
       .order("group_letter")
+      .order("kickoff_at"),
+    supabase
+      .from("matches")
+      .select("id,matchday,group_letter,kickoff_at,home_team_id,away_team_id,stage,bracket_slot")
+      .neq("stage", "group")
+      .order("bracket_slot", { ascending: true, nullsFirst: false })
       .order("kickoff_at"),
     supabase
       .from("predictions")
@@ -47,7 +55,18 @@ export default async function PrediccionesPage() {
   const windowMap = new Map((windows ?? []).map((w) => [w.phase_key, w]));
   const resultMap = new Map((results ?? []).map((r) => [r.match_id, r]));
 
-  const vms: MatchVM[] = (matches ?? []).map((m) => {
+  const now = Date.now();
+
+  function buildVM(m: {
+    id: number;
+    matchday: number | null;
+    group_letter: string | null;
+    kickoff_at: string;
+    home_team_id: number;
+    away_team_id: number;
+    stage: string;
+    bracket_slot?: number | null;
+  }, locked: boolean): MatchVM {
     const home = teamMap.get(m.home_team_id);
     const away = teamMap.get(m.away_team_id);
     const pred = predMap.get(m.id);
@@ -58,13 +77,28 @@ export default async function PrediccionesPage() {
       id: m.id,
       matchday: m.matchday ?? 0,
       group: m.group_letter ?? "",
+      stage: m.stage,
+      bracket_slot: (m as { bracket_slot?: number | null }).bracket_slot ?? null,
       kickoff_at: m.kickoff_at,
       home: { name: home?.name ?? "?", flag: home?.flag_emoji ?? "" },
       away: { name: away?.name ?? "?", flag: away?.flag_emoji ?? "" },
       prediction: pred ? { home: pred.home_score, away: pred.away_score } : null,
       result: result ? { home: result.home_score, away: result.away_score } : null,
       isColombiaMatch,
+      locked,
     };
+  }
+
+  const groupVMs: MatchVM[] = (groupMatches ?? []).map((m) => {
+    const w = windowMap.get(`md${m.matchday}`);
+    const status = windowStatus(w);
+    return buildVM(m, status !== "open");
+  });
+
+  const knockoutVMs: MatchVM[] = (knockoutMatches ?? []).map((m) => {
+    const kickoffMs = new Date(m.kickoff_at).getTime();
+    const locked = kickoffMs - now <= CUTOFF_MS;
+    return buildVM(m, locked);
   });
 
   const matchdayInfo = Object.fromEntries(
@@ -91,7 +125,11 @@ export default async function PrediccionesPage() {
         </p>
       </div>
 
-      <PrediccionesView matchdayInfo={matchdayInfo} matches={vms} />
+      <PrediccionesView
+        matchdayInfo={matchdayInfo}
+        matches={groupVMs}
+        knockoutMatches={knockoutVMs}
+      />
     </div>
   );
 }

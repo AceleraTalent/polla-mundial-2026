@@ -19,19 +19,37 @@ const badgeStyle: Record<WindowStatus, string> = {
   locked:   "bg-zinc-200 text-zinc-700",
 };
 
+const STAGE_LABELS: Record<string, string> = {
+  r32:   "32avos de Final",
+  r16:   "Octavos de Final",
+  qf:    "Cuartos de Final",
+  sf:    "Semifinales",
+  final: "Final",
+};
+
+const kickoffFmt = new Intl.DateTimeFormat("es-CO", {
+  timeZone: "America/Bogota",
+  day: "2-digit",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
 export function PrediccionesView({
   matchdayInfo,
   matches,
+  knockoutMatches = [],
 }: {
   matchdayInfo: Record<number, WindowInfo>;
   matches: MatchVM[];
+  knockoutMatches?: MatchVM[];
 }) {
   const [groupFilter, setGroupFilter] = useState<string>("Todos");
   const [localMatches, setLocalMatches] = useState<MatchVM[]>(matches);
+  const [localKnockout, setLocalKnockout] = useState<MatchVM[]>(knockoutMatches);
 
-  useEffect(() => {
-    setLocalMatches(matches);
-  }, [matches]);
+  useEffect(() => { setLocalMatches(matches); }, [matches]);
+  useEffect(() => { setLocalKnockout(knockoutMatches); }, [knockoutMatches]);
 
   const groups = [...new Set(localMatches.map((m) => m.group))].sort();
   const tabs = ["Todos", ...groups];
@@ -45,10 +63,27 @@ export function PrediccionesView({
     setLocalMatches((current) =>
       current.map((m) => (m.id === matchId ? { ...m, prediction } : m)),
     );
+    setLocalKnockout((current) =>
+      current.map((m) => (m.id === matchId ? { ...m, prediction } : m)),
+    );
   }
 
   const standingsGroups =
     groupFilter === "Todos" ? groups : groups.filter((g) => g === groupFilter);
+
+  // Group knockout matches by stage (in bracket order)
+  const knockoutStages = ["r32", "r16", "qf", "sf", "final"];
+  const knockoutByStage = knockoutStages
+    .map((stage) => ({
+      stage,
+      label: STAGE_LABELS[stage],
+      matches: localKnockout
+        .filter((m) => m.stage === stage)
+        .sort((a, b) => (a.bracket_slot ?? 99) - (b.bracket_slot ?? 99)),
+    }))
+    .filter((s) => s.matches.length > 0);
+
+  const showKnockout = knockoutByStage.length > 0;
 
   return (
     <div className="space-y-6">
@@ -107,7 +142,7 @@ export function PrediccionesView({
         ))}
       </div>
 
-      {/* ── Matchday sections ── */}
+      {/* ── Matchday sections (grupos) ── */}
       {([1, 2, 3] as const).map((md) => {
         const info = matchdayInfo[md];
         const mdMatches = filtered.filter((m) => m.matchday === md);
@@ -119,7 +154,6 @@ export function PrediccionesView({
 
         return (
           <section key={md} className="space-y-3">
-            {/* Section header */}
             <div className="flex items-center gap-3">
               <h2 className="text-lg font-bold">{info.label}</h2>
               <Badge className={cn("border-0", badgeStyle[info.status])}>
@@ -132,11 +166,9 @@ export function PrediccionesView({
               )}
             </div>
 
-            {/* Matches */}
             <div className="space-y-4">
               {sectionGroups.map((g) => (
                 <div key={g} className="space-y-1.5">
-                  {/* Only show group label when "Todos" filter is active */}
                   {groupFilter === "Todos" && (
                     <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Grupo {g}
@@ -160,6 +192,69 @@ export function PrediccionesView({
           </section>
         );
       })}
+
+      {/* ── Eliminatoria (knockout) sections ── */}
+      {showKnockout && (
+        <div className="space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-slate-200" />
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              Eliminatoria
+            </span>
+            <div className="h-px flex-1 bg-slate-200" />
+          </div>
+
+          {knockoutByStage.map(({ stage, label, matches: stageMatches }) => (
+            <section key={stage} className="space-y-3">
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-bold">{label}</h2>
+                <Badge className={cn("border-0",
+                  stageMatches.some((m) => !m.locked)
+                    ? badgeStyle.open
+                    : badgeStyle.locked
+                )}>
+                  {stageMatches.some((m) => !m.locked) ? "Abierta" : "Cerrada"}
+                </Badge>
+              </div>
+
+              <div className="space-y-1.5">
+                {stageMatches.map((m) => {
+                  const editable = !m.locked;
+                  const kickoff = new Date(m.kickoff_at);
+                  return (
+                    <div key={m.id} className="space-y-0.5">
+                      {/* Slot / kickoff label */}
+                      <div className="flex items-center gap-2 px-1">
+                        {m.bracket_slot && (
+                          <span className="text-xs font-bold text-slate-400">
+                            #{m.bracket_slot}
+                          </span>
+                        )}
+                        <span className="text-xs text-muted-foreground">
+                          {kickoffFmt.format(kickoff)}
+                        </span>
+                        {m.locked && (
+                          <span className="text-xs text-zinc-500">🔒 Cerrado</span>
+                        )}
+                        {!m.locked && (
+                          <span className="text-xs text-emerald-600 font-semibold">
+                            Abierto — cierra 1h antes
+                          </span>
+                        )}
+                      </div>
+                      <MatchCard
+                        match={m}
+                        editable={editable}
+                        onPredictionSaved={updatePrediction}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

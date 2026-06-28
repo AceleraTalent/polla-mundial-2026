@@ -17,5 +17,5 @@ export default async function Home() {
     .maybeSingle();
 
   if (!profile?.is_onboarded) redirect("/onboarding");
-  redirect("/predicciones");
+  redirect("/llave");
 }

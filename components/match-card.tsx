@@ -13,12 +13,15 @@ export type MatchVM = {
   id: number;
   matchday: number;
   group: string;
+  stage?: string;
+  bracket_slot?: number | null;
   kickoff_at: string;
   home: { name: string; flag: string };
   away: { name: string; flag: string };
   prediction: { home: number; away: number } | null;
   result: { home: number; away: number } | null;
   isColombiaMatch?: boolean;
+  locked?: boolean;
 };
 
 type SaveState = "idle" | "saving" | "saved" | "error";

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { createClient } from "@/lib/supabase/server";
 import { AdminTabs, type AdminMatchVM } from "./admin-tabs";
+import type { KnockoutMatchVM } from "./r32-editor";
 import type { PlayerVM } from "./players-tab";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,7 @@ export default async function AdminPage() {
   const [
     { data: teams },
     { data: matches },
+    { data: knockoutRaw },
     { data: results },
     { data: tournament },
     { data: windows },
@@ -28,6 +30,12 @@ export default async function AdminPage() {
       .eq("stage", "group")
       .order("matchday")
       .order("group_letter")
+      .order("kickoff_at"),
+    supabase
+      .from("matches")
+      .select("id,stage,bracket_slot,home_team_id,away_team_id,kickoff_at")
+      .neq("stage", "group")
+      .order("bracket_slot", { ascending: true, nullsFirst: false })
       .order("kickoff_at"),
     supabase.from("match_results").select("match_id,home_score,away_score"),
     supabase.from("tournament_results").select("*").eq("id", 1).maybeSingle(),
@@ -81,6 +89,21 @@ export default async function AdminPage() {
       m.home_team_id === colombiaId || m.away_team_id === colombiaId,
     ]),
   );
+
+  const knockoutMatchVMs: KnockoutMatchVM[] = (knockoutRaw ?? []).map((m) => {
+    const home = teamMap.get(m.home_team_id);
+    const away = teamMap.get(m.away_team_id);
+    const r = resultMap.get(m.id);
+    return {
+      id: m.id,
+      stage: m.stage,
+      bracket_slot: m.bracket_slot ?? null,
+      kickoff_at: m.kickoff_at,
+      home: { name: home?.name ?? "?", flag: home?.flag_emoji ?? "", id: m.home_team_id },
+      away: { name: away?.name ?? "?", flag: away?.flag_emoji ?? "", id: m.away_team_id },
+      result: r ? { home: r.home_score, away: r.away_score } : null,
+    };
+  });
 
   // Build a map: match_id → result
   const specialTeamName = (id: number | null) => (id ? (teamMap.get(id)?.name ?? null) : null);
@@ -149,6 +172,7 @@ export default async function AdminPage() {
         <AdminTabs
           teams={teams ?? []}
           matches={matchVMs}
+          knockoutMatches={knockoutMatchVMs}
           tournament={tournament ?? null}
           windows={windows ?? []}
           players={players}
