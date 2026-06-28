@@ -38,9 +38,8 @@ export default async function PrediccionesPage() {
       .order("kickoff_at"),
     supabase
       .from("matches")
-      .select("id,matchday,group_letter,kickoff_at,home_team_id,away_team_id,stage,bracket_slot")
+      .select("id,matchday,group_letter,kickoff_at,home_team_id,away_team_id,stage")
       .neq("stage", "group")
-      .order("bracket_slot", { ascending: true, nullsFirst: false })
       .order("kickoff_at"),
     supabase
       .from("predictions")
@@ -95,10 +94,10 @@ export default async function PrediccionesPage() {
     return buildVM(m, status !== "open");
   });
 
-  const knockoutVMs: MatchVM[] = (knockoutMatches ?? []).map((m) => {
+  const knockoutVMs: MatchVM[] = (knockoutMatches ?? []).map((m, i) => {
     const kickoffMs = new Date(m.kickoff_at).getTime();
     const locked = kickoffMs - now <= CUTOFF_MS;
-    return buildVM(m, locked);
+    return { ...buildVM(m, locked), bracket_slot: i + 1 };
   });
 
   const matchdayInfo = Object.fromEntries(

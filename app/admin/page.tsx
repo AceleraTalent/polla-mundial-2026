@@ -33,9 +33,8 @@ export default async function AdminPage() {
       .order("kickoff_at"),
     supabase
       .from("matches")
-      .select("id,stage,bracket_slot,home_team_id,away_team_id,kickoff_at")
+      .select("id,stage,home_team_id,away_team_id,kickoff_at")
       .neq("stage", "group")
-      .order("bracket_slot", { ascending: true, nullsFirst: false })
       .order("kickoff_at"),
     supabase.from("match_results").select("match_id,home_score,away_score"),
     supabase.from("tournament_results").select("*").eq("id", 1).maybeSingle(),
@@ -90,14 +89,14 @@ export default async function AdminPage() {
     ]),
   );
 
-  const knockoutMatchVMs: KnockoutMatchVM[] = (knockoutRaw ?? []).map((m) => {
+  const knockoutMatchVMs: KnockoutMatchVM[] = (knockoutRaw ?? []).map((m, i) => {
     const home = teamMap.get(m.home_team_id);
     const away = teamMap.get(m.away_team_id);
     const r = resultMap.get(m.id);
     return {
       id: m.id,
       stage: m.stage,
-      bracket_slot: m.bracket_slot ?? null,
+      bracket_slot: i + 1,
       kickoff_at: m.kickoff_at,
       home: { name: home?.name ?? "?", flag: home?.flag_emoji ?? "", id: m.home_team_id },
       away: { name: away?.name ?? "?", flag: away?.flag_emoji ?? "", id: m.away_team_id },

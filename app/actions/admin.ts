@@ -137,7 +137,6 @@ export async function createKnockoutMatch(input: {
     home_team_id: parsed.data.home_team_id,
     away_team_id: parsed.data.away_team_id,
     kickoff_at: kickoff.toISOString(),
-    bracket_slot: parsed.data.bracket_slot ?? null,
   });
   if (error) return { ok: false, error: "No se pudo crear el partido." };
 

@@ -22,9 +22,8 @@ export default async function LlavePage() {
     await Promise.all([
       supabase
         .from("matches")
-        .select("id,stage,bracket_slot,home_team_id,away_team_id,kickoff_at")
+        .select("id,stage,home_team_id,away_team_id,kickoff_at")
         .neq("stage", "group")
-        .order("bracket_slot", { ascending: true, nullsFirst: false })
         .order("kickoff_at"),
       supabase.from("teams").select("id,name,flag_emoji"),
       supabase.from("match_results").select("match_id,home_score,away_score"),
@@ -34,15 +33,19 @@ export default async function LlavePage() {
   const resultMap = new Map((results ?? []).map((r) => [r.match_id, r]));
   const now = Date.now();
 
+  // Group by stage, then assign slot by position within stage (ordered by kickoff_at)
+  const stageCounters = new Map<string, number>();
   const bracketMatches: BracketMatchVM[] = (knockoutMatches ?? []).map((m) => {
     const home = teamMap.get(m.home_team_id);
     const away = teamMap.get(m.away_team_id);
     const result = resultMap.get(m.id);
     const kickoffMs = new Date(m.kickoff_at).getTime();
+    const count = (stageCounters.get(m.stage) ?? 0) + 1;
+    stageCounters.set(m.stage, count);
     return {
       id: m.id,
       stage: m.stage,
-      bracket_slot: m.bracket_slot ?? null,
+      bracket_slot: count,
       home: home ? { name: home.name, flag: home.flag_emoji } : null,
       away: away ? { name: away.name, flag: away.flag_emoji } : null,
       result: result ? { home: result.home_score, away: result.away_score } : null,
@@ -56,9 +59,7 @@ export default async function LlavePage() {
   const byStage = stages.map((stage) => ({
     stage,
     label: STAGE_LABELS[stage],
-    matches: bracketMatches
-      .filter((m) => m.stage === stage)
-      .sort((a, b) => (a.bracket_slot ?? 99) - (b.bracket_slot ?? 99)),
+    matches: bracketMatches.filter((m) => m.stage === stage),
   })).filter((s) => s.matches.length > 0);
 
   const hasAnyMatches = bracketMatches.length > 0;
