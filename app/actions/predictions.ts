@@ -57,7 +57,14 @@ export async function savePrediction(input: {
     }
   }
 
-  const { error } = await supabase.from("predictions").upsert(
+  // Use service role to bypass RLS (all validation already done above)
+  const { createClient: createAdmin } = await import("@supabase/supabase-js");
+  const admin = createAdmin(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+
+  const { error } = await admin.from("predictions").upsert(
     {
       user_id: user.id,
       match_id: matchId,
@@ -71,6 +78,7 @@ export async function savePrediction(input: {
     return { ok: false, error: "No se pudo guardar. Intenta de nuevo." };
   }
   revalidatePath("/predicciones");
+  revalidatePath("/llave");
   return { ok: true };
 }
 

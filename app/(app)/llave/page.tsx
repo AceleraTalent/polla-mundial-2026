@@ -1,10 +1,11 @@
 import { requireOnboarded } from "@/lib/auth-helpers";
 import { createClient } from "@/lib/supabase/server";
-import { BracketView, type BracketMatchVM } from "@/components/bracket-view";
+import { type BracketMatchVM } from "@/components/bracket-view";
+import { LlaveClient } from "./llave-client";
 
 export const dynamic = "force-dynamic";
 
-const CUTOFF_MS = 60 * 60 * 1000; // 1 hour
+const CUTOFF_MS = 60 * 60 * 1000;
 
 const STAGE_LABELS: Record<string, string> = {
   r32:   "32avos de Final",
@@ -15,25 +16,29 @@ const STAGE_LABELS: Record<string, string> = {
 };
 
 export default async function LlavePage() {
-  await requireOnboarded();
+  const { user } = await requireOnboarded();
   const supabase = createClient();
 
-  const [{ data: knockoutMatches }, { data: teams }, { data: results }] =
+  const [{ data: knockoutMatches }, { data: teams }, { data: results }, { data: preds }] =
     await Promise.all([
       supabase
         .from("matches")
         .select("id,stage,home_team_id,away_team_id,kickoff_at")
         .neq("stage", "group")
         .order("kickoff_at"),
-      supabase.from("teams").select("id,name,flag_emoji"),
+      supabase.from("teams").select("id,name,flag_emoji,code"),
       supabase.from("match_results").select("match_id,home_score,away_score"),
+      supabase
+        .from("predictions")
+        .select("match_id,home_score,away_score")
+        .eq("user_id", user.id),
     ]);
 
   const teamMap = new Map((teams ?? []).map((t) => [t.id, t]));
   const resultMap = new Map((results ?? []).map((r) => [r.match_id, r]));
+  const predMap = new Map((preds ?? []).map((p) => [p.match_id, p]));
   const now = Date.now();
 
-  // Group by stage, then assign slot by position within stage (ordered by kickoff_at)
   const stageCounters = new Map<string, number>();
   const bracketMatches: BracketMatchVM[] = (knockoutMatches ?? []).map((m) => {
     const home = teamMap.get(m.home_team_id);
@@ -54,33 +59,49 @@ export default async function LlavePage() {
     };
   });
 
-  // Group for list view
-  const stages = ["r32", "r16", "qf", "sf", "final"] as const;
-  const byStage = stages.map((stage) => ({
-    stage,
-    label: STAGE_LABELS[stage],
-    matches: bracketMatches.filter((m) => m.stage === stage),
-  })).filter((s) => s.matches.length > 0);
+  // Build MatchVM list for cards (with prediction inputs)
+  const matchVMs = (knockoutMatches ?? []).map((m, i) => {
+    const home = teamMap.get(m.home_team_id);
+    const away = teamMap.get(m.away_team_id);
+    const result = resultMap.get(m.id);
+    const pred = predMap.get(m.id);
+    const kickoffMs = new Date(m.kickoff_at).getTime();
+    return {
+      id: m.id,
+      matchday: 0,
+      group: "",
+      stage: m.stage,
+      bracket_slot: i + 1,
+      kickoff_at: m.kickoff_at,
+      home: { name: home?.name ?? "Por definir", flag: home?.flag_emoji ?? "🏳️" },
+      away: { name: away?.name ?? "Por definir", flag: away?.flag_emoji ?? "🏳️" },
+      prediction: pred ? { home: pred.home_score, away: pred.away_score } : null,
+      result: result ? { home: result.home_score, away: result.away_score } : null,
+      isColombiaMatch: home?.code === "COL" || away?.code === "COL",
+      locked: kickoffMs - now <= CUTOFF_MS,
+    };
+  });
 
-  const hasAnyMatches = bracketMatches.length > 0;
+  const stages = ["r32", "r16", "qf", "sf", "final"] as const;
+  const byStage = stages
+    .map((stage) => ({
+      stage,
+      label: STAGE_LABELS[stage],
+      bracket: bracketMatches.filter((m) => m.stage === stage),
+      cards: matchVMs.filter((m) => m.stage === stage),
+    }))
+    .filter((s) => s.cards.length > 0);
+
+  const hasAnyMatches = matchVMs.length > 0;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-extrabold">Llave del Mundial 2026</h1>
         <p className="text-sm text-muted-foreground">
-          Cuadro de eliminación directa — 32avos al Final.
+          Ingresa tu predicción en cada partido antes del pitazo.
         </p>
       </div>
-
-      {hasAnyMatches && (
-        <a
-          href="/predicciones"
-          className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white shadow hover:bg-emerald-700 transition-colors"
-        >
-          ✏️ Ingresar mis predicciones →
-        </a>
-      )}
 
       {!hasAnyMatches ? (
         <div className="rounded-xl border bg-white p-10 text-center text-muted-foreground">
@@ -90,88 +111,7 @@ export default async function LlavePage() {
           </p>
         </div>
       ) : (
-        <>
-          {/* Visual bracket */}
-          <section className="space-y-2">
-            <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
-              Vista de llave
-            </h2>
-            <div className="rounded-xl border bg-white p-4 overflow-x-auto">
-              <BracketView matches={bracketMatches} />
-            </div>
-          </section>
-
-          {/* List view by stage */}
-          <section className="space-y-4">
-            <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
-              Partidos por fase
-            </h2>
-            {byStage.map(({ stage, label, matches }) => (
-              <div key={stage} className="space-y-2">
-                <h3 className="font-bold text-base">{label}</h3>
-                <div className="space-y-1.5">
-                  {matches.map((m) => (
-                    <div
-                      key={m.id}
-                      className="flex items-center gap-3 rounded-lg border bg-white px-4 py-3 shadow-sm"
-                    >
-                      {/* Slot badge */}
-                      {m.bracket_slot && (
-                        <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-xs font-bold text-slate-500">
-                          #{m.bracket_slot}
-                        </span>
-                      )}
-
-                      {/* Home */}
-                      <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
-                        <span className="truncate text-right text-sm font-semibold">
-                          {m.home?.name ?? "Por definir"}
-                        </span>
-                        <span className="text-2xl">{m.home?.flag ?? "🏳️"}</span>
-                      </div>
-
-                      {/* Score / VS */}
-                      <div className="w-16 shrink-0 text-center">
-                        {m.result ? (
-                          <span className="text-xl font-extrabold tabular-nums">
-                            {m.result.home} – {m.result.away}
-                          </span>
-                        ) : (
-                          <span className="text-sm font-bold text-muted-foreground">
-                            {m.kickoff_at
-                              ? new Date(m.kickoff_at).toLocaleDateString("es-CO", {
-                                  month: "short",
-                                  day: "numeric",
-                                  timeZone: "America/Bogota",
-                                })
-                              : "vs"}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Away */}
-                      <div className="flex min-w-0 flex-1 items-center gap-2">
-                        <span className="text-2xl">{m.away?.flag ?? "🏳️"}</span>
-                        <span className="truncate text-sm font-semibold">
-                          {m.away?.name ?? "Por definir"}
-                        </span>
-                      </div>
-
-                      {/* Lock status */}
-                      <span className="shrink-0 text-xs text-muted-foreground">
-                        {m.result
-                          ? "✅ Final"
-                          : m.isOpen
-                          ? "🔓 Abierto"
-                          : "🔒 Cerrado"}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </section>
-        </>
+        <LlaveClient byStage={byStage} bracketMatches={bracketMatches} />
       )}
     </div>
   );
