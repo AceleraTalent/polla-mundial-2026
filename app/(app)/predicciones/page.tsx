@@ -3,6 +3,7 @@ import { PrediccionesView } from "@/components/predicciones-view";
 import { requireOnboarded } from "@/lib/auth-helpers";
 import { windowStatus } from "@/lib/locks";
 import { createClient } from "@/lib/supabase/server";
+import { getBracketSlot } from "@/lib/bracket-slots";
 
 export const dynamic = "force-dynamic";
 
@@ -97,7 +98,7 @@ export default async function PrediccionesPage() {
   const knockoutVMs: MatchVM[] = (knockoutMatches ?? []).map((m, i) => {
     const kickoffMs = new Date(m.kickoff_at).getTime();
     const locked = kickoffMs - now <= CUTOFF_MS;
-    return { ...buildVM(m, locked), bracket_slot: i + 1 };
+    return { ...buildVM(m, locked), bracket_slot: getBracketSlot(m.id, m.stage, i + 1) };
   });
 
   const matchdayInfo = Object.fromEntries(

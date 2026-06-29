@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AdminTabs, type AdminMatchVM } from "./admin-tabs";
 import type { KnockoutMatchVM } from "./r32-editor";
 import type { PlayerVM } from "./players-tab";
+import { getBracketSlot } from "@/lib/bracket-slots";
 
 export const dynamic = "force-dynamic";
 
@@ -96,7 +97,7 @@ export default async function AdminPage() {
     return {
       id: m.id,
       stage: m.stage,
-      bracket_slot: i + 1,
+      bracket_slot: getBracketSlot(m.id, m.stage, i + 1),
       kickoff_at: m.kickoff_at,
       home: { name: home?.name ?? "?", flag: home?.flag_emoji ?? "", id: m.home_team_id },
       away: { name: away?.name ?? "?", flag: away?.flag_emoji ?? "", id: m.away_team_id },

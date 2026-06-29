@@ -1,6 +1,7 @@
 import { requireOnboarded } from "@/lib/auth-helpers";
 import { createClient } from "@/lib/supabase/server";
 import { type BracketMatchVM } from "@/components/bracket-view";
+import { getBracketSlot } from "@/lib/bracket-slots";
 import { LlaveClient } from "./llave-client";
 
 export const dynamic = "force-dynamic";
@@ -39,48 +40,57 @@ export default async function LlavePage() {
   const predMap = new Map((preds ?? []).map((p) => [p.match_id, p]));
   const now = Date.now();
 
+  // Assign bracket slots: R32 uses hardcoded FIFA bracket positions;
+  // later rounds use sequential index within the stage.
   const stageCounters = new Map<string, number>();
-  const bracketMatches: BracketMatchVM[] = (knockoutMatches ?? []).map((m) => {
-    const home = teamMap.get(m.home_team_id);
-    const away = teamMap.get(m.away_team_id);
-    const result = resultMap.get(m.id);
-    const kickoffMs = new Date(m.kickoff_at).getTime();
-    const count = (stageCounters.get(m.stage) ?? 0) + 1;
-    stageCounters.set(m.stage, count);
-    return {
-      id: m.id,
-      stage: m.stage,
-      bracket_slot: count,
-      home: home ? { name: home.name, flag: home.flag_emoji } : null,
-      away: away ? { name: away.name, flag: away.flag_emoji } : null,
-      result: result ? { home: result.home_score, away: result.away_score } : null,
-      kickoff_at: m.kickoff_at,
-      isOpen: kickoffMs - now > CUTOFF_MS,
-    };
-  });
-
-  // Build MatchVM list for cards (with prediction inputs)
-  const matchVMs = (knockoutMatches ?? []).map((m, i) => {
+  const allMatches = (knockoutMatches ?? []).map((m) => {
     const home = teamMap.get(m.home_team_id);
     const away = teamMap.get(m.away_team_id);
     const result = resultMap.get(m.id);
     const pred = predMap.get(m.id);
     const kickoffMs = new Date(m.kickoff_at).getTime();
-    return {
-      id: m.id,
-      matchday: 0,
-      group: "",
-      stage: m.stage,
-      bracket_slot: i + 1,
-      kickoff_at: m.kickoff_at,
-      home: { name: home?.name ?? "Por definir", flag: home?.flag_emoji ?? "🏳️" },
-      away: { name: away?.name ?? "Por definir", flag: away?.flag_emoji ?? "🏳️" },
-      prediction: pred ? { home: pred.home_score, away: pred.away_score } : null,
-      result: result ? { home: result.home_score, away: result.away_score } : null,
-      isColombiaMatch: home?.code === "COL" || away?.code === "COL",
-      locked: kickoffMs - now <= CUTOFF_MS,
-    };
+    const seqIdx = (stageCounters.get(m.stage) ?? 0) + 1;
+    stageCounters.set(m.stage, seqIdx);
+    const slot = getBracketSlot(m.id, m.stage, seqIdx);
+    return { m, home, away, result, pred, kickoffMs, slot };
   });
+
+  const STAGE_ORDER: Record<string, number> = { r32: 0, r16: 1, qf: 2, sf: 3, final: 4 };
+
+  // Sort: by stage first, then by bracket slot for R32, then by kickoff for later rounds
+  const sortedMatches = [...allMatches].sort((a, b) => {
+    const stageDiff = (STAGE_ORDER[a.m.stage] ?? 99) - (STAGE_ORDER[b.m.stage] ?? 99);
+    if (stageDiff !== 0) return stageDiff;
+    if (a.m.stage === "r32") return a.slot - b.slot;
+    return a.kickoffMs - b.kickoffMs;
+  });
+
+  const bracketMatches: BracketMatchVM[] = sortedMatches.map(({ m, home, away, result, kickoffMs, slot }) => ({
+    id: m.id,
+    stage: m.stage,
+    bracket_slot: slot,
+    home: home ? { name: home.name, flag: home.flag_emoji } : null,
+    away: away ? { name: away.name, flag: away.flag_emoji } : null,
+    result: result ? { home: result.home_score, away: result.away_score } : null,
+    kickoff_at: m.kickoff_at,
+    isOpen: kickoffMs - now > CUTOFF_MS,
+  }));
+
+  // Build MatchVM list for cards (with prediction inputs), in bracket order for R32
+  const matchVMs = sortedMatches.map(({ m, home, away, result, pred, kickoffMs, slot }) => ({
+    id: m.id,
+    matchday: 0,
+    group: "",
+    stage: m.stage,
+    bracket_slot: slot,
+    kickoff_at: m.kickoff_at,
+    home: { name: home?.name ?? "Por definir", flag: home?.flag_emoji ?? "🏳️" },
+    away: { name: away?.name ?? "Por definir", flag: away?.flag_emoji ?? "🏳️" },
+    prediction: pred ? { home: pred.home_score, away: pred.away_score } : null,
+    result: result ? { home: result.home_score, away: result.away_score } : null,
+    isColombiaMatch: home?.code === "COL" || away?.code === "COL",
+    locked: kickoffMs - now <= CUTOFF_MS,
+  }));
 
   const stages = ["r32", "r16", "qf", "sf", "final"] as const;
   const byStage = stages
