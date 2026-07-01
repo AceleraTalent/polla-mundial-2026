@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/fetch-all";
 
 export type MatchBreakdownRow = {
   match_id: number;
@@ -35,17 +36,25 @@ export async function GET(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
 
-  const [predsRes, matchesRes, resultsRes, teamsRes] = await Promise.all([
-    admin.from("predictions").select("match_id, home_score, away_score").eq("user_id", userId),
-    admin.from("matches").select("id, kickoff_at, group_letter, matchday, home_team_id, away_team_id"),
-    admin.from("match_results").select("match_id, home_score, away_score"),
-    admin.from("teams").select("id, name, flag_emoji, code"),
+  const [predictions, matches, results, teams] = await Promise.all([
+    fetchAll((from, to) =>
+      admin
+        .from("predictions")
+        .select("match_id, home_score, away_score")
+        .eq("user_id", userId)
+        .range(from, to),
+    ),
+    fetchAll((from, to) =>
+      admin
+        .from("matches")
+        .select("id, kickoff_at, group_letter, matchday, home_team_id, away_team_id")
+        .range(from, to),
+    ),
+    fetchAll((from, to) =>
+      admin.from("match_results").select("match_id, home_score, away_score").range(from, to),
+    ),
+    fetchAll((from, to) => admin.from("teams").select("id, name, flag_emoji, code").range(from, to)),
   ]);
-
-  const predictions = predsRes.data ?? [];
-  const matches = matchesRes.data ?? [];
-  const results = resultsRes.data ?? [];
-  const teams = teamsRes.data ?? [];
 
   const teamMap = new Map(teams.map((t) => [t.id, t]));
   const resultMap = new Map(results.map((r) => [r.match_id, r]));

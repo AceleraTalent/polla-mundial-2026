@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { isAdminEmail } from "@/lib/admin";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/fetch-all";
 
 function toCsv(headers: string[], rows: (string | number | null)[][]): string {
   const esc = (v: string | number | null) => {
@@ -26,12 +27,15 @@ export async function GET(request: Request) {
   let filename: string;
 
   if (type === "predictions") {
-    const { data } = await supabase
-      .from("predictions")
-      .select("user_id,match_id,home_score,away_score,updated_at");
+    const data = await fetchAll((from, to) =>
+      supabase
+        .from("predictions")
+        .select("user_id,match_id,home_score,away_score,updated_at")
+        .range(from, to),
+    );
     csv = toCsv(
       ["user_id", "match_id", "home_score", "away_score", "updated_at"],
-      (data ?? []).map((p) => [p.user_id, p.match_id, p.home_score, p.away_score, p.updated_at]),
+      data.map((p) => [p.user_id, p.match_id, p.home_score, p.away_score, p.updated_at]),
     );
     filename = "predicciones.csv";
   } else {

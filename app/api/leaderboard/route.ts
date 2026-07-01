@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import type { LeaderboardRow } from "@/lib/types";
+import { fetchAll } from "@/lib/fetch-all";
 
 export const dynamic = "force-dynamic";
 
@@ -10,18 +11,23 @@ export async function GET() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
 
-  const [matchesRes, resultsRes, teamsRes, predsRes, profilesRes] = await Promise.all([
-    admin.from("matches").select("id, home_team_id, away_team_id"),
-    admin.from("match_results").select("match_id, home_score, away_score"),
-    admin.from("teams").select("id, code"),
-    admin.from("predictions").select("user_id, match_id, home_score, away_score"),
+  const [matches, results, teams, predictions, profilesRes] = await Promise.all([
+    fetchAll((from, to) =>
+      admin.from("matches").select("id, home_team_id, away_team_id").range(from, to),
+    ),
+    fetchAll((from, to) =>
+      admin.from("match_results").select("match_id, home_score, away_score").range(from, to),
+    ),
+    fetchAll((from, to) => admin.from("teams").select("id, code").range(from, to)),
+    fetchAll((from, to) =>
+      admin
+        .from("predictions")
+        .select("user_id, match_id, home_score, away_score")
+        .range(from, to),
+    ),
     admin.from("profiles").select("id, nickname, avatar_id").eq("is_onboarded", true),
   ]);
 
-  const matches = matchesRes.data ?? [];
-  const results = resultsRes.data ?? [];
-  const teams = teamsRes.data ?? [];
-  const predictions = predsRes.data ?? [];
   const profiles = profilesRes.data ?? [];
 
   const resultMap = new Map(results.map((r) => [r.match_id, r]));
