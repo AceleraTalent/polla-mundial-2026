@@ -19,6 +19,36 @@ const ESPN_NAME_TO_CODE: Record<string, string> = {
   "United States of America": "USA", "Türkiye": "TUR", "IR Iran": "IRN", "Curaçao": "CUW",
 };
 
+// Partidos de eliminatoria definidos en alargue/penales: ESPN reporta el
+// marcador final (incluyendo goles de tiempo extra) en `score`, pero la
+// polla puntúa el resultado de los 90 minutos. Sumamos los dos primeros
+// periodos (1er y 2do tiempo) del summary para obtener ese marcador.
+async function fetchRegulationScore(
+  eventId: string,
+): Promise<{ homeScore: number; awayScore: number } | null> {
+  try {
+    const res = await fetch(
+      `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary?event=${eventId}`,
+      { cache: "no-store" },
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const comp = data.header?.competitions?.[0];
+    const home = comp?.competitors?.find((c: { homeAway: string }) => c.homeAway === "home");
+    const away = comp?.competitors?.find((c: { homeAway: string }) => c.homeAway === "away");
+    const homeLines = home?.linescores;
+    const awayLines = away?.linescores;
+    if (!Array.isArray(homeLines) || !Array.isArray(awayLines) || homeLines.length < 2 || awayLines.length < 2) {
+      return null;
+    }
+    const sum = (lines: { displayValue?: string }[]) =>
+      parseInt(lines[0]?.displayValue ?? "0", 10) + parseInt(lines[1]?.displayValue ?? "0", 10);
+    return { homeScore: sum(homeLines), awayScore: sum(awayLines) };
+  } catch {
+    return null;
+  }
+}
+
 async function fetchESPNScores(dateStr: string): Promise<Map<string, { homeScore: number; awayScore: number }>> {
   const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${dateStr}`;
   const res = await fetch(url, { cache: "no-store" });
@@ -27,24 +57,39 @@ async function fetchESPNScores(dateStr: string): Promise<Map<string, { homeScore
   const data = await res.json();
   const scores = new Map<string, { homeScore: number; awayScore: number }>();
 
-  for (const event of (data.events ?? [])) {
-    const comp = event.competitions?.[0];
-    if (!comp) continue;
-    if (comp.status?.type?.name !== "STATUS_FULL_TIME") continue;
+  await Promise.all((data.events ?? []).map(async (event: { id?: string; competitions?: unknown[] }) => {
+    const comp = event.competitions?.[0] as {
+      status?: { type?: { completed?: boolean; name?: string } };
+      competitors?: { homeAway: string; team?: { displayName?: string }; score?: string }[];
+    } | undefined;
+    if (!comp) return;
+    // Acepta cualquier estado final: tiempo reglamentario (STATUS_FULL_TIME),
+    // tiempo extra (STATUS_FINAL_AET) o penales (STATUS_FINAL_PEN), comunes
+    // en la fase de eliminatoria. `completed` cubre estos y futuras variantes.
+    if (comp.status?.type?.completed !== true) return;
 
-    const home = comp.competitors?.find((c: { homeAway: string }) => c.homeAway === "home");
-    const away = comp.competitors?.find((c: { homeAway: string }) => c.homeAway === "away");
-    if (!home || !away) continue;
+    const home = comp.competitors?.find((c) => c.homeAway === "home");
+    const away = comp.competitors?.find((c) => c.homeAway === "away");
+    if (!home || !away) return;
 
-    const homeCode = ESPN_NAME_TO_CODE[home.team?.displayName];
-    const awayCode = ESPN_NAME_TO_CODE[away.team?.displayName];
-    if (!homeCode || !awayCode) continue;
+    const homeCode = ESPN_NAME_TO_CODE[home.team?.displayName ?? ""];
+    const awayCode = ESPN_NAME_TO_CODE[away.team?.displayName ?? ""];
+    if (!homeCode || !awayCode) return;
 
-    const homeScore = parseInt(home.score ?? "0", 10);
-    const awayScore = parseInt(away.score ?? "0", 10);
+    let homeScore = parseInt(home.score ?? "0", 10);
+    let awayScore = parseInt(away.score ?? "0", 10);
+
+    if (comp.status?.type?.name !== "STATUS_FULL_TIME" && event.id) {
+      const regulation = await fetchRegulationScore(event.id);
+      if (regulation) {
+        homeScore = regulation.homeScore;
+        awayScore = regulation.awayScore;
+      }
+    }
+
     scores.set(`${homeCode}-${awayCode}`, { homeScore, awayScore });
     scores.set(`${awayCode}-${homeCode}`, { homeScore: awayScore, awayScore: homeScore });
-  }
+  }));
   return scores;
 }
 
