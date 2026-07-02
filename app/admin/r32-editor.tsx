@@ -30,7 +30,7 @@ export type KnockoutMatchVM = {
   home: { name: string; flag: string; id: number };
   away: { name: string; flag: string; id: number };
   kickoff_at: string;
-  result: { home: number; away: number } | null;
+  result: { home: number; away: number; penaltyWinnerTeamId: number | null } | null;
 };
 
 // ── Result row for each knockout match ──────────────────────────────────────
@@ -38,16 +38,25 @@ export type KnockoutMatchVM = {
 function ResultRow({ match }: { match: KnockoutMatchVM }) {
   const [home, setHome] = useState(match.result ? String(match.result.home) : "");
   const [away, setAway] = useState(match.result ? String(match.result.away) : "");
+  const [penaltyWinner, setPenaltyWinner] = useState<string>(
+    match.result?.penaltyWinnerTeamId ? String(match.result.penaltyWinnerTeamId) : "",
+  );
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useState(match.result != null);
   const [delPending, startDel] = useTransition();
 
   const clamp = (v: string) => v.replace(/\D/g, "").slice(0, 2);
+  const isDraw = home !== "" && away !== "" && Number(home) === Number(away);
 
   function onSave() {
     if (home === "" || away === "") { toast.error("Completa ambos marcadores."); return; }
     startTransition(async () => {
-      const res = await saveMatchResult({ matchId: match.id, home: Number(home), away: Number(away) });
+      const res = await saveMatchResult({
+        matchId: match.id,
+        home: Number(home),
+        away: Number(away),
+        penaltyWinnerTeamId: isDraw && penaltyWinner ? Number(penaltyWinner) : null,
+      });
       if (res.ok) { setSaved(true); toast.success("Resultado guardado"); }
       else toast.error(res.error);
     });
@@ -56,7 +65,7 @@ function ResultRow({ match }: { match: KnockoutMatchVM }) {
   function onClear() {
     startTransition(async () => {
       const res = await clearMatchResult(match.id);
-      if (res.ok) { setHome(""); setAway(""); setSaved(false); toast.success("Resultado borrado"); }
+      if (res.ok) { setHome(""); setAway(""); setPenaltyWinner(""); setSaved(false); toast.success("Resultado borrado"); }
       else toast.error(res.error);
     });
   }
@@ -72,31 +81,48 @@ function ResultRow({ match }: { match: KnockoutMatchVM }) {
   const slotLabel = match.bracket_slot ? `#${match.bracket_slot}` : "—";
 
   return (
-    <div className="flex items-center gap-2 rounded-md border bg-white px-3 py-2 text-sm">
-      <span className="w-8 text-xs text-muted-foreground font-mono">{slotLabel}</span>
-      <div className="flex flex-1 items-center justify-end gap-1.5">
-        <span className="truncate">{match.home.name}</span>
-        <span>{match.home.flag}</span>
+    <div className="space-y-1.5 rounded-md border bg-white px-3 py-2 text-sm">
+      <div className="flex items-center gap-2">
+        <span className="w-8 text-xs text-muted-foreground font-mono">{slotLabel}</span>
+        <div className="flex flex-1 items-center justify-end gap-1.5">
+          <span className="truncate">{match.home.name}</span>
+          <span>{match.home.flag}</span>
+        </div>
+        <input inputMode="numeric" value={home} onChange={(e) => setHome(clamp(e.target.value))}
+          className="h-9 w-9 rounded border text-center tabular-nums" placeholder="-" />
+        <span className="text-muted-foreground">–</span>
+        <input inputMode="numeric" value={away} onChange={(e) => setAway(clamp(e.target.value))}
+          className="h-9 w-9 rounded border text-center tabular-nums" placeholder="-" />
+        <div className="flex flex-1 items-center gap-1.5">
+          <span>{match.away.flag}</span>
+          <span className="truncate">{match.away.name}</span>
+        </div>
+        <Button size="sm" onClick={onSave} disabled={pending}>
+          {saved ? "Actualizar" : "Guardar"}
+        </Button>
+        {saved && (
+          <Button size="sm" variant="ghost" onClick={onClear} disabled={pending}>✕</Button>
+        )}
+        <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-700"
+          onClick={onDelete} disabled={delPending}>
+          🗑
+        </Button>
       </div>
-      <input inputMode="numeric" value={home} onChange={(e) => setHome(clamp(e.target.value))}
-        className="h-9 w-9 rounded border text-center tabular-nums" placeholder="-" />
-      <span className="text-muted-foreground">–</span>
-      <input inputMode="numeric" value={away} onChange={(e) => setAway(clamp(e.target.value))}
-        className="h-9 w-9 rounded border text-center tabular-nums" placeholder="-" />
-      <div className="flex flex-1 items-center gap-1.5">
-        <span>{match.away.flag}</span>
-        <span className="truncate">{match.away.name}</span>
-      </div>
-      <Button size="sm" onClick={onSave} disabled={pending}>
-        {saved ? "Actualizar" : "Guardar"}
-      </Button>
-      {saved && (
-        <Button size="sm" variant="ghost" onClick={onClear} disabled={pending}>✕</Button>
+
+      {isDraw && (
+        <div className="flex items-center gap-2 pl-10 text-xs">
+          <span className="text-muted-foreground">🎯 Ganador en penales:</span>
+          <select
+            value={penaltyWinner}
+            onChange={(e) => setPenaltyWinner(e.target.value)}
+            className="h-8 rounded border bg-white px-2 text-xs"
+          >
+            <option value="">— Sin definir —</option>
+            <option value={match.home.id}>{match.home.flag} {match.home.name}</option>
+            <option value={match.away.id}>{match.away.flag} {match.away.name}</option>
+          </select>
+        </div>
       )}
-      <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-700"
-        onClick={onDelete} disabled={delPending}>
-        🗑
-      </Button>
     </div>
   );
 }

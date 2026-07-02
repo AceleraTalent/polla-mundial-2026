@@ -17,6 +17,7 @@ export type MatchBreakdownRow = {
   pred_home: number;
   pred_away: number;
   is_colombia: boolean;
+  penalty_pick_correct: boolean;
   points: number;
 };
 
@@ -40,7 +41,7 @@ export async function GET(request: Request) {
     fetchAll((from, to) =>
       admin
         .from("predictions")
-        .select("match_id, home_score, away_score")
+        .select("match_id, home_score, away_score, penalty_winner_team_id")
         .eq("user_id", userId)
         .range(from, to),
     ),
@@ -51,7 +52,10 @@ export async function GET(request: Request) {
         .range(from, to),
     ),
     fetchAll((from, to) =>
-      admin.from("match_results").select("match_id, home_score, away_score").range(from, to),
+      admin
+        .from("match_results")
+        .select("match_id, home_score, away_score, penalty_winner_team_id")
+        .range(from, to),
     ),
     fetchAll((from, to) => admin.from("teams").select("id, name, flag_emoji, code").range(from, to)),
   ]);
@@ -91,6 +95,9 @@ export async function GET(request: Request) {
       if (predSign === resSign) basePoints = 1;
     }
 
+    const penaltyPickCorrect =
+      !!result.penalty_winner_team_id && pred.penalty_winner_team_id === result.penalty_winner_team_id;
+
     rows.push({
       match_id: match.id,
       kickoff_at: match.kickoff_at,
@@ -105,7 +112,8 @@ export async function GET(request: Request) {
       pred_home: pred.home_score,
       pred_away: pred.away_score,
       is_colombia: isCol,
-      points: basePoints * multiplier,
+      penalty_pick_correct: penaltyPickCorrect,
+      points: basePoints * multiplier + (penaltyPickCorrect ? 1 : 0),
     });
   }
 

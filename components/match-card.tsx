@@ -16,12 +16,16 @@ export type MatchVM = {
   stage?: string;
   bracket_slot?: number | null;
   kickoff_at: string;
-  home: { name: string; flag: string };
-  away: { name: string; flag: string };
+  home: { name: string; flag: string; id?: number };
+  away: { name: string; flag: string; id?: number };
   prediction: { home: number; away: number } | null;
   result: { home: number; away: number } | null;
   isColombiaMatch?: boolean;
   locked?: boolean;
+  /** Pick del usuario para ganador de penales (solo eliminatoria). */
+  penaltyWinnerTeamId?: number | null;
+  /** Ganador real de la tanda de penales, si el partido se definió así. */
+  actualPenaltyWinnerTeamId?: number | null;
 };
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -286,6 +290,10 @@ export function MatchCard({
   );
   const [saveStatus, setSaveStatus] = useState<SaveState>("idle");
   const [modalOpen, setModalOpen] = useState(false);
+  const [penaltyWinner, setPenaltyWinner] = useState<number | null>(
+    match.penaltyWinnerTeamId ?? null,
+  );
+  const [penaltySaving, setPenaltySaving] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mounted = useRef(true);
 
@@ -299,7 +307,8 @@ export function MatchCard({
     setHome(predictionHome !== undefined ? String(predictionHome) : "");
     setAway(predictionAway !== undefined ? String(predictionAway) : "");
     setSaveStatus("idle");
-  }, [match.id, predictionHome, predictionAway]);
+    setPenaltyWinner(match.penaltyWinnerTeamId ?? null);
+  }, [match.id, predictionHome, predictionAway, match.penaltyWinnerTeamId]);
 
   function scheduleSave(nextHome: string, nextAway: string) {
     if (!editable) return;
@@ -311,6 +320,7 @@ export function MatchCard({
         matchId: match.id,
         home: Number(nextHome),
         away: Number(nextAway),
+        penaltyWinnerTeamId: penaltyWinner,
       });
       if (res.ok) {
         onPredictionSaved?.(match.id, {
@@ -328,18 +338,41 @@ export function MatchCard({
     }, 600);
   }
 
+  function pickPenaltyWinner(teamId: number) {
+    if (!editable) return;
+    if (home === "" || away === "") {
+      toast.error("Primero ingresa el marcador.");
+      return;
+    }
+    const next = penaltyWinner === teamId ? null : teamId;
+    setPenaltyWinner(next);
+    setPenaltySaving(true);
+    savePrediction({
+      matchId: match.id,
+      home: Number(home),
+      away: Number(away),
+      penaltyWinnerTeamId: next,
+    }).then((res) => {
+      if (!mounted.current) return;
+      setPenaltySaving(false);
+      if (!res.ok) toast.error(res.error);
+    });
+  }
+
   const clamp = (v: string) => v.replace(/\D/g, "").slice(0, 2);
 
   const isCol = match.isColombiaMatch ?? false;
+  const isKnockout = !!match.stage && match.stage !== "group";
 
   return (
     <>
       <div
         className={cn(
-          "flex items-center gap-2 rounded-lg border bg-white px-3 py-2.5",
+          "rounded-lg border bg-white",
           isCol && "border-yellow-300 bg-yellow-50/40",
         )}
       >
+      <div className="flex items-center gap-2 px-3 py-2.5">
         {/* Colombia badge */}
         {isCol && (
           <span className="hidden sm:inline-flex items-center text-[10px] font-bold text-yellow-700 bg-yellow-100 rounded px-1.5 shrink-0">
@@ -404,10 +437,95 @@ export function MatchCard({
         </button>
       </div>
 
+      {isKnockout && match.home.id != null && match.away.id != null && (
+        <PenaltyWinnerPicker
+          home={{ id: match.home.id, name: match.home.name, flag: match.home.flag }}
+          away={{ id: match.away.id, name: match.away.name, flag: match.away.flag }}
+          selected={penaltyWinner}
+          actual={match.actualPenaltyWinnerTeamId ?? null}
+          disabled={!editable || home === "" || away === ""}
+          saving={penaltySaving}
+          onPick={pickPenaltyWinner}
+        />
+      )}
+      </div>
+
       {modalOpen && (
         <PredictionsModal match={match} onClose={() => setModalOpen(false)} />
       )}
     </>
+  );
+}
+
+function PenaltyWinnerPicker({
+  home,
+  away,
+  selected,
+  actual,
+  disabled,
+  saving,
+  onPick,
+}: {
+  home: { id: number; name: string; flag: string };
+  away: { id: number; name: string; flag: string };
+  selected: number | null;
+  actual: number | null;
+  disabled: boolean;
+  saving: boolean;
+  onPick: (teamId: number) => void;
+}) {
+  const decidedByPenalties = actual != null;
+
+  function optionClass(teamId: number) {
+    const isSelected = selected === teamId;
+    if (decidedByPenalties) {
+      const isCorrect = actual === teamId;
+      if (isSelected && isCorrect) return "border-emerald-500 bg-emerald-50 text-emerald-800";
+      if (isSelected && !isCorrect) return "border-red-300 bg-red-50 text-red-700";
+      if (!isSelected && isCorrect) return "border-emerald-300 bg-emerald-50/50 text-emerald-700";
+      return "border-zinc-200 text-zinc-500";
+    }
+    return isSelected
+      ? "border-emerald-500 bg-emerald-50 text-emerald-800"
+      : "border-zinc-200 text-zinc-600 hover:border-zinc-300";
+  }
+
+  return (
+    <div className="flex items-center gap-2 border-t px-3 py-2 text-xs">
+      <span className="shrink-0 font-medium text-muted-foreground">
+        🎯 Gana en penales{decidedByPenalties ? "" : " (+1 si acierta)"}:
+      </span>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onPick(home.id)}
+        className={cn(
+          "flex items-center gap-1 rounded-full border px-2 py-1 font-semibold transition-colors",
+          optionClass(home.id),
+          disabled && "cursor-not-allowed opacity-60",
+        )}
+      >
+        <span>{home.flag}</span>
+        <span className="max-w-20 truncate">{home.name}</span>
+      </button>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onPick(away.id)}
+        className={cn(
+          "flex items-center gap-1 rounded-full border px-2 py-1 font-semibold transition-colors",
+          optionClass(away.id),
+          disabled && "cursor-not-allowed opacity-60",
+        )}
+      >
+        <span>{away.flag}</span>
+        <span className="max-w-20 truncate">{away.name}</span>
+      </button>
+      {saving && <span className="text-muted-foreground">Guardando…</span>}
+      {!decidedByPenalties && selected == null && (
+        <span className="hidden text-muted-foreground sm:inline">Opcional</span>
+      )}
+    </div>
   );
 }
 

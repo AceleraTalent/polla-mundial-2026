@@ -28,10 +28,10 @@ export default async function LlavePage() {
         .neq("stage", "group")
         .order("kickoff_at"),
       supabase.from("teams").select("id,name,flag_emoji,code"),
-      supabase.from("match_results").select("match_id,home_score,away_score"),
+      supabase.from("match_results").select("match_id,home_score,away_score,penalty_winner_team_id"),
       supabase
         .from("predictions")
-        .select("match_id,home_score,away_score")
+        .select("match_id,home_score,away_score,penalty_winner_team_id")
         .eq("user_id", user.id),
     ]);
 
@@ -84,12 +84,14 @@ export default async function LlavePage() {
     stage: m.stage,
     bracket_slot: slot,
     kickoff_at: m.kickoff_at,
-    home: { name: home?.name ?? "Por definir", flag: home?.flag_emoji ?? "🏳️" },
-    away: { name: away?.name ?? "Por definir", flag: away?.flag_emoji ?? "🏳️" },
+    home: { name: home?.name ?? "Por definir", flag: home?.flag_emoji ?? "🏳️", id: home?.id },
+    away: { name: away?.name ?? "Por definir", flag: away?.flag_emoji ?? "🏳️", id: away?.id },
     prediction: pred ? { home: pred.home_score, away: pred.away_score } : null,
     result: result ? { home: result.home_score, away: result.away_score } : null,
     isColombiaMatch: home?.code === "COL" || away?.code === "COL",
     locked: kickoffMs - now <= CUTOFF_MS,
+    penaltyWinnerTeamId: pred?.penalty_winner_team_id ?? null,
+    actualPenaltyWinnerTeamId: result?.penalty_winner_team_id ?? null,
   }));
 
   const stages = ["r32", "r16", "qf", "sf", "final"] as const;

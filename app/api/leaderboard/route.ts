@@ -16,13 +16,16 @@ export async function GET() {
       admin.from("matches").select("id, home_team_id, away_team_id").range(from, to),
     ),
     fetchAll((from, to) =>
-      admin.from("match_results").select("match_id, home_score, away_score").range(from, to),
+      admin
+        .from("match_results")
+        .select("match_id, home_score, away_score, penalty_winner_team_id")
+        .range(from, to),
     ),
     fetchAll((from, to) => admin.from("teams").select("id, code").range(from, to)),
     fetchAll((from, to) =>
       admin
         .from("predictions")
-        .select("user_id, match_id, home_score, away_score")
+        .select("user_id, match_id, home_score, away_score, penalty_winner_team_id")
         .range(from, to),
     ),
     admin.from("profiles").select("id, nickname, avatar_id").eq("is_onboarded", true),
@@ -63,6 +66,9 @@ export async function GET() {
         if (predSign === resSign) base = 1;
       }
       total += base * (colMatchIds.has(p.match_id) ? 2 : 1);
+      if (r.penalty_winner_team_id && p.penalty_winner_team_id === r.penalty_winner_team_id) {
+        total += 1;
+      }
     }
     matchPts.set(uid, total);
   }

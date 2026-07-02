@@ -49,18 +49,20 @@ async function fetchRegulationScore(
   }
 }
 
-async function fetchESPNScores(dateStr: string): Promise<Map<string, { homeScore: number; awayScore: number }>> {
+type SyncedScore = { homeScore: number; awayScore: number; penaltyWinnerCode: string | null };
+
+async function fetchESPNScores(dateStr: string): Promise<Map<string, SyncedScore>> {
   const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${dateStr}`;
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) return new Map();
 
   const data = await res.json();
-  const scores = new Map<string, { homeScore: number; awayScore: number }>();
+  const scores = new Map<string, SyncedScore>();
 
   await Promise.all((data.events ?? []).map(async (event: { id?: string; competitions?: unknown[] }) => {
     const comp = event.competitions?.[0] as {
       status?: { type?: { completed?: boolean; name?: string } };
-      competitors?: { homeAway: string; team?: { displayName?: string }; score?: string }[];
+      competitors?: { homeAway: string; team?: { displayName?: string }; score?: string; winner?: boolean }[];
     } | undefined;
     if (!comp) return;
     // Acepta cualquier estado final: tiempo reglamentario (STATUS_FULL_TIME),
@@ -87,8 +89,15 @@ async function fetchESPNScores(dateStr: string): Promise<Map<string, { homeScore
       }
     }
 
-    scores.set(`${homeCode}-${awayCode}`, { homeScore, awayScore });
-    scores.set(`${awayCode}-${homeCode}`, { homeScore: awayScore, awayScore: homeScore });
+    // Ganador de la tanda de penales (si aplica): ESPN marca `winner: true`
+    // en el competitor que avanzó, aunque el marcador haya quedado empatado.
+    const penaltyWinnerCode =
+      comp.status?.type?.name === "STATUS_FINAL_PEN"
+        ? (home.winner ? homeCode : away.winner ? awayCode : null)
+        : null;
+
+    scores.set(`${homeCode}-${awayCode}`, { homeScore, awayScore, penaltyWinnerCode });
+    scores.set(`${awayCode}-${homeCode}`, { homeScore: awayScore, awayScore: homeScore, penaltyWinnerCode });
   }));
   return scores;
 }
@@ -101,7 +110,9 @@ async function runSync() {
 
   const { data: matches } = await supabase
     .from("matches")
-    .select("id, kickoff_at, home_team:teams!matches_home_team_id_fkey(code), away_team:teams!matches_away_team_id_fkey(code), match_results(match_id)")
+    .select(
+      "id, home_team_id, away_team_id, kickoff_at, home_team:teams!matches_home_team_id_fkey(code), away_team:teams!matches_away_team_id_fkey(code), match_results(match_id)",
+    )
     .lt("kickoff_at", new Date().toISOString())
     .order("kickoff_at");
 
@@ -124,20 +135,31 @@ async function runSync() {
     }
   }
 
-  const allScores = new Map<string, { homeScore: number; awayScore: number }>();
+  const allScores = new Map<string, SyncedScore>();
   await Promise.all([...extendedDates].map(async (date) => {
     const scores = await fetchESPNScores(date);
     for (const [key, val] of scores) allScores.set(key, val);
   }));
 
-  const upserts: { match_id: number; home_score: number; away_score: number }[] = [];
+  const upserts: { match_id: number; home_score: number; away_score: number; penalty_winner_team_id: number | null }[] = [];
   for (const match of pending) {
     const home = (match.home_team as unknown as { code: string } | null)?.code;
     const away = (match.away_team as unknown as { code: string } | null)?.code;
     if (!home || !away) continue;
     const score = allScores.get(`${home}-${away}`);
     if (!score) continue;
-    upserts.push({ match_id: match.id, home_score: score.homeScore, away_score: score.awayScore });
+    const penaltyWinnerTeamId =
+      score.penaltyWinnerCode === home
+        ? match.home_team_id
+        : score.penaltyWinnerCode === away
+          ? match.away_team_id
+          : null;
+    upserts.push({
+      match_id: match.id,
+      home_score: score.homeScore,
+      away_score: score.awayScore,
+      penalty_winner_team_id: penaltyWinnerTeamId,
+    });
   }
 
   if (upserts.length === 0) {

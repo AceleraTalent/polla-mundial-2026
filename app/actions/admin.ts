@@ -26,12 +26,14 @@ const resultSchema = z.object({
   matchId: z.coerce.number().int().positive(),
   home: z.coerce.number().int().min(0).max(99),
   away: z.coerce.number().int().min(0).max(99),
+  penaltyWinnerTeamId: z.coerce.number().int().positive().optional().nullable(),
 });
 
 export async function saveMatchResult(input: {
   matchId: number;
   home: number;
   away: number;
+  penaltyWinnerTeamId?: number | null;
 }): Promise<AdminResult> {
   const { supabase, error: authErr } = await getAdminClient();
   if (authErr) return { ok: false, error: authErr };
@@ -39,11 +41,27 @@ export async function saveMatchResult(input: {
   const parsed = resultSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Marcador inválido (0–99)." };
 
+  if (parsed.data.penaltyWinnerTeamId != null) {
+    const { data: match } = await supabase
+      .from("matches")
+      .select("home_team_id, away_team_id")
+      .eq("id", parsed.data.matchId)
+      .maybeSingle();
+    if (
+      !match ||
+      (parsed.data.penaltyWinnerTeamId !== match.home_team_id &&
+        parsed.data.penaltyWinnerTeamId !== match.away_team_id)
+    ) {
+      return { ok: false, error: "Ese equipo no juega este partido." };
+    }
+  }
+
   const { error } = await supabase.from("match_results").upsert(
     {
       match_id: parsed.data.matchId,
       home_score: parsed.data.home,
       away_score: parsed.data.away,
+      penalty_winner_team_id: parsed.data.penaltyWinnerTeamId ?? null,
     },
     { onConflict: "match_id" },
   );
@@ -51,6 +69,7 @@ export async function saveMatchResult(input: {
 
   revalidatePath("/admin");
   revalidatePath("/leaderboard");
+  revalidatePath("/llave");
   return { ok: true };
 }
 

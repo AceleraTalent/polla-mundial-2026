@@ -109,6 +109,7 @@ export function PlayerBreakdownModal({
                       <span>·</span>
                       <span>{fmtDate(row.kickoff_at)}</span>
                       {row.is_colombia && <span className="text-yellow-600">🇨🇴 ×2</span>}
+                      {row.penalty_pick_correct && <span className="text-emerald-600">🎯 Penales +1</span>}
                     </div>
                   </div>
 

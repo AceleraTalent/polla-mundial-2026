@@ -6,6 +6,7 @@ export const POINTS = {
   SEMIFINALIST: 3,
   TOP_SCORER: 5,
   COLOMBIA_MULTIPLIER: 2,
+  PENALTY_WINNER: 1,
 } as const;
 
 const sign = (n: number) => (n > 0 ? 1 : n < 0 ? -1 : 0);
@@ -29,4 +30,19 @@ export function matchPoints(
     return POINTS.OUTCOME * mult;
   }
   return 0;
+}
+
+/**
+ * Bono de 1 punto por acertar el ganador de la tanda de penales.
+ * Solo aplica si el partido efectivamente se definió por penales
+ * (result.penalty_winner_team_id no es null). No resta si el usuario
+ * no eligió, si el partido no llegó a penales, o si eligió mal.
+ */
+export function penaltyWinnerPoints(
+  predPenaltyWinnerTeamId: number | null | undefined,
+  resultPenaltyWinnerTeamId: number | null | undefined,
+): number {
+  if (!resultPenaltyWinnerTeamId) return 0;
+  if (!predPenaltyWinnerTeamId) return 0;
+  return predPenaltyWinnerTeamId === resultPenaltyWinnerTeamId ? POINTS.PENALTY_WINNER : 0;
 }

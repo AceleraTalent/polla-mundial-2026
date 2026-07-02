@@ -9,6 +9,7 @@ const schema = z.object({
   matchId: z.coerce.number().int().positive(),
   home: z.coerce.number().int().min(0).max(99),
   away: z.coerce.number().int().min(0).max(99),
+  penaltyWinnerTeamId: z.coerce.number().int().positive().optional().nullable(),
 });
 
 export type SaveResult = { ok: true } | { ok: false; error: string };
@@ -17,12 +18,13 @@ export async function savePrediction(input: {
   matchId: number;
   home: number;
   away: number;
+  penaltyWinnerTeamId?: number | null;
 }): Promise<SaveResult> {
   const parsed = schema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: "Marcador inválido (0–99)." };
   }
-  const { matchId, home, away } = parsed.data;
+  const { matchId, home, away, penaltyWinnerTeamId } = parsed.data;
 
   const supabase = createClient();
   const {
@@ -32,10 +34,19 @@ export async function savePrediction(input: {
 
   const { data: match } = await supabase
     .from("matches")
-    .select("matchday, stage")
+    .select("matchday, stage, home_team_id, away_team_id")
     .eq("id", matchId)
     .maybeSingle();
   if (!match) return { ok: false, error: "Partido no encontrado." };
+
+  if (penaltyWinnerTeamId != null) {
+    if (match.stage === "group") {
+      return { ok: false, error: "El pick de penales solo aplica en eliminatoria." };
+    }
+    if (penaltyWinnerTeamId !== match.home_team_id && penaltyWinnerTeamId !== match.away_team_id) {
+      return { ok: false, error: "Ese equipo no juega este partido." };
+    }
+  }
 
   if (match.stage === "group") {
     if (!match.matchday) return { ok: false, error: "Partido no encontrado." };
@@ -64,12 +75,26 @@ export async function savePrediction(input: {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
 
+  // Si no viene el pick de penales en este guardado (p.ej. solo cambió el
+  // marcador), conserva el que ya tenía guardado en vez de borrarlo.
+  let finalPenaltyWinnerTeamId = penaltyWinnerTeamId ?? null;
+  if (penaltyWinnerTeamId === undefined) {
+    const { data: existing } = await admin
+      .from("predictions")
+      .select("penalty_winner_team_id")
+      .eq("user_id", user.id)
+      .eq("match_id", matchId)
+      .maybeSingle();
+    finalPenaltyWinnerTeamId = existing?.penalty_winner_team_id ?? null;
+  }
+
   const { error } = await admin.from("predictions").upsert(
     {
       user_id: user.id,
       match_id: matchId,
       home_score: home,
       away_score: away,
+      penalty_winner_team_id: finalPenaltyWinnerTeamId,
     },
     { onConflict: "user_id,match_id" },
   );

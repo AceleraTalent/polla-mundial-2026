@@ -41,6 +41,22 @@ export default function ReglasPage() {
             </CardContent>
           </Card>
 
+          <Card className="border-emerald-300 bg-emerald-50">
+            <CardHeader>
+              <CardTitle className="text-base text-emerald-800">🎯 Bono — Ganador en penales</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1.5 text-sm text-emerald-900">
+              <p>
+                En partidos de eliminatoria (32avos en adelante), además del marcador
+                puedes elegir qué equipo crees que gana la tanda de penales.
+              </p>
+              <p>• Si el partido se define por penales y aciertas: <b>+1 punto extra</b></p>
+              <p className="text-xs text-emerald-700 mt-2">
+                Si el partido no llega a penales, o eliges mal, no suma ni resta.
+              </p>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">🏆 Predicciones especiales</CardTitle>

@@ -47,6 +47,7 @@ export type Prediction = {
   match_id: number;
   home_score: number;
   away_score: number;
+  penalty_winner_team_id: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -55,6 +56,7 @@ export type MatchResult = {
   match_id: number;
   home_score: number;
   away_score: number;
+  penalty_winner_team_id: number | null;
   updated_at: string;
 };
 
