@@ -475,55 +475,58 @@ function PenaltyWinnerPicker({
   onPick: (teamId: number) => void;
 }) {
   const decidedByPenalties = actual != null;
+  const needsScoreFirst = disabled && !decidedByPenalties;
 
   function optionClass(teamId: number) {
     const isSelected = selected === teamId;
     if (decidedByPenalties) {
       const isCorrect = actual === teamId;
-      if (isSelected && isCorrect) return "border-emerald-500 bg-emerald-50 text-emerald-800";
+      if (isSelected && isCorrect) return "border-emerald-500 bg-emerald-100 text-emerald-800";
       if (isSelected && !isCorrect) return "border-red-300 bg-red-50 text-red-700";
-      if (!isSelected && isCorrect) return "border-emerald-300 bg-emerald-50/50 text-emerald-700";
-      return "border-zinc-200 text-zinc-500";
+      if (!isSelected && isCorrect) return "border-emerald-300 bg-emerald-50 text-emerald-700";
+      return "border-zinc-200 bg-white text-zinc-500";
     }
     return isSelected
-      ? "border-emerald-500 bg-emerald-50 text-emerald-800"
-      : "border-zinc-200 text-zinc-600 hover:border-zinc-300";
+      ? "border-emerald-500 bg-emerald-100 text-emerald-800"
+      : "border-purple-200 bg-white text-zinc-700 hover:border-purple-400 active:bg-purple-50";
   }
 
   return (
-    <div className="flex items-center gap-2 border-t px-3 py-2 text-xs">
-      <span className="shrink-0 font-medium text-muted-foreground">
-        🎯 Gana en penales{decidedByPenalties ? "" : " (+1 si acierta)"}:
+    <div className="flex flex-wrap items-center gap-2 border-t border-purple-100 bg-purple-50/60 px-3 py-2.5 text-sm sm:text-xs">
+      <span className="w-full shrink-0 font-bold text-purple-800 sm:w-auto">
+        🎯 Gana en penales{decidedByPenalties ? "" : " (+1 punto extra)"}
       </span>
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => onPick(home.id)}
-        className={cn(
-          "flex items-center gap-1 rounded-full border px-2 py-1 font-semibold transition-colors",
-          optionClass(home.id),
-          disabled && "cursor-not-allowed opacity-60",
-        )}
-      >
-        <span>{home.flag}</span>
-        <span className="max-w-20 truncate">{home.name}</span>
-      </button>
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => onPick(away.id)}
-        className={cn(
-          "flex items-center gap-1 rounded-full border px-2 py-1 font-semibold transition-colors",
-          optionClass(away.id),
-          disabled && "cursor-not-allowed opacity-60",
-        )}
-      >
-        <span>{away.flag}</span>
-        <span className="max-w-20 truncate">{away.name}</span>
-      </button>
-      {saving && <span className="text-muted-foreground">Guardando…</span>}
-      {!decidedByPenalties && selected == null && (
-        <span className="hidden text-muted-foreground sm:inline">Opcional</span>
+      <div className="flex flex-1 flex-wrap items-center gap-2">
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => onPick(home.id)}
+          className={cn(
+            "flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-semibold transition-colors",
+            optionClass(home.id),
+            disabled && "cursor-not-allowed opacity-50",
+          )}
+        >
+          <span>{home.flag}</span>
+          <span className="max-w-24 truncate sm:max-w-20">{home.name}</span>
+        </button>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => onPick(away.id)}
+          className={cn(
+            "flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-semibold transition-colors",
+            optionClass(away.id),
+            disabled && "cursor-not-allowed opacity-50",
+          )}
+        >
+          <span>{away.flag}</span>
+          <span className="max-w-24 truncate sm:max-w-20">{away.name}</span>
+        </button>
+        {saving && <span className="text-purple-600">Guardando…</span>}
+      </div>
+      {needsScoreFirst && (
+        <span className="w-full text-purple-700">☝️ Ingresa el marcador arriba para poder elegir</span>
       )}
     </div>
   );
