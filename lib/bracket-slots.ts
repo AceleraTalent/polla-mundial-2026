@@ -33,8 +33,26 @@ export const R32_BRACKET_SLOT: Record<number, number> = {
   104: 16, // Colombia vs Ghana        (FIFA M87)
 };
 
+/**
+ * Octavos (R16): cada partido nace de un par fijo de slots de 32avos
+ * (1+2→R16 slot1, 3+4→slot2, 5+6→slot3, 7+8→slot4, 9+10→slot5, 11+12→slot6,
+ * 13+14→slot7, 15+16→slot8). El id de partido se agrega cuando se crea en
+ * /admin — se debe actualizar este mapa cada vez que se agrega un octavo.
+ */
+export const R16_BRACKET_SLOT: Record<number, number> = {
+  106: 1, // Paraguay vs Francia            (ganadores slots 1+2)
+  105: 2, // Canadá vs Marruecos            (ganadores slots 3+4)
+  // 3: Portugal/Croacia vs España/Austria (ganadores slots 5+6) — pendiente
+  109: 4, // Estados Unidos vs Bélgica       (ganadores slots 7+8)
+  107: 5, // Brasil vs Noruega               (ganadores slots 9+10)
+  108: 6, // México vs Inglaterra            (ganadores slots 11+12)
+  // 7: Argentina/Cabo Verde vs Australia/Egipto (ganadores slots 13+14) — pendiente
+  // 8: Suiza/Argelia vs Colombia/Ghana      (ganadores slots 15+16) — pendiente
+};
+
 /** Returns the bracket slot for a knockout match, defaulting to the fallback index. */
 export function getBracketSlot(matchId: number, stage: string, fallbackIndex: number): number {
   if (stage === "r32") return R32_BRACKET_SLOT[matchId] ?? fallbackIndex;
+  if (stage === "r16") return R16_BRACKET_SLOT[matchId] ?? fallbackIndex;
   return fallbackIndex;
 }
