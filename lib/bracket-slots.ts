@@ -42,12 +42,12 @@ export const R32_BRACKET_SLOT: Record<number, number> = {
 export const R16_BRACKET_SLOT: Record<number, number> = {
   106: 1, // Paraguay vs Francia            (ganadores slots 1+2)
   105: 2, // Canadá vs Marruecos            (ganadores slots 3+4)
-  // 3: Portugal/Croacia vs España/Austria (ganadores slots 5+6) — pendiente
+  110: 3, // Portugal vs España              (ganadores slots 5+6)
   109: 4, // Estados Unidos vs Bélgica       (ganadores slots 7+8)
   107: 5, // Brasil vs Noruega               (ganadores slots 9+10)
   108: 6, // México vs Inglaterra            (ganadores slots 11+12)
-  // 7: Argentina/Cabo Verde vs Australia/Egipto (ganadores slots 13+14) — pendiente
-  // 8: Suiza/Argelia vs Colombia/Ghana      (ganadores slots 15+16) — pendiente
+  111: 7, // Argentina vs Egipto              (ganadores slots 13+14)
+  112: 8, // Suiza vs Colombia               (ganadores slots 15+16)
 };
 
 /** Returns the bracket slot for a knockout match, defaulting to the fallback index. */
