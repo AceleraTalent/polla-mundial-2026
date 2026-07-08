@@ -132,7 +132,10 @@ async function runSync() {
   );
 
   if (pending.length === 0) {
-    return { ok: true, updated: 0, message: "No pending matches" };
+    // Aunque no haya partidos nuevos por sincronizar, la llave puede seguir
+    // esperando avanzar con resultados ya cargados en una corrida anterior.
+    const { created } = await advanceBracket(supabase);
+    return { ok: true, updated: 0, message: "No pending matches", bracketAdvanced: created };
   }
 
   // Collect dates ±1 day to handle timezone edge cases
@@ -177,7 +180,13 @@ async function runSync() {
   }
 
   if (upserts.length === 0) {
-    return { ok: true, updated: 0, message: "No finished matches found in ESPN yet" };
+    const { created } = await advanceBracket(supabase);
+    return {
+      ok: true,
+      updated: 0,
+      message: "No finished matches found in ESPN yet",
+      bracketAdvanced: created,
+    };
   }
 
   const { error } = await supabase
