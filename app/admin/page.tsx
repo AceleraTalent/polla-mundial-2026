@@ -34,10 +34,10 @@ export default async function AdminPage() {
       .order("kickoff_at"),
     supabase
       .from("matches")
-      .select("id,stage,home_team_id,away_team_id,kickoff_at")
+      .select("id,stage,home_team_id,away_team_id,kickoff_at,bracket_slot")
       .neq("stage", "group")
       .order("kickoff_at"),
-    supabase.from("match_results").select("match_id,home_score,away_score,penalty_winner_team_id"),
+    supabase.from("match_results").select("match_id,home_score,away_score,penalty_winner_team_id,winner_team_id"),
     supabase.from("tournament_results").select("*").eq("id", 1).maybeSingle(),
     supabase.from("phase_windows").select("*").order("phase_key"),
     supabase.rpc("get_leaderboard"),
@@ -97,12 +97,17 @@ export default async function AdminPage() {
     return {
       id: m.id,
       stage: m.stage,
-      bracket_slot: getBracketSlot(m.id, m.stage, i + 1),
+      bracket_slot: getBracketSlot(m.id, m.stage, i + 1, m.bracket_slot),
       kickoff_at: m.kickoff_at,
       home: { name: home?.name ?? "?", flag: home?.flag_emoji ?? "", id: m.home_team_id },
       away: { name: away?.name ?? "?", flag: away?.flag_emoji ?? "", id: m.away_team_id },
       result: r
-        ? { home: r.home_score, away: r.away_score, penaltyWinnerTeamId: r.penalty_winner_team_id ?? null }
+        ? {
+            home: r.home_score,
+            away: r.away_score,
+            penaltyWinnerTeamId: r.penalty_winner_team_id ?? null,
+            winnerTeamId: r.winner_team_id ?? null,
+          }
         : null,
     };
   });

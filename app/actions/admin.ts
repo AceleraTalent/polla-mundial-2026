@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { isAdminEmail } from "@/lib/admin";
 import { createClient } from "@/lib/supabase/server";
+import { advanceBracket } from "@/lib/knockout-advance";
 
 export type AdminResult = { ok: true } | { ok: false; error: string };
 
@@ -27,6 +28,7 @@ const resultSchema = z.object({
   home: z.coerce.number().int().min(0).max(99),
   away: z.coerce.number().int().min(0).max(99),
   penaltyWinnerTeamId: z.coerce.number().int().positive().optional().nullable(),
+  winnerTeamId: z.coerce.number().int().positive().optional().nullable(),
 });
 
 export async function saveMatchResult(input: {
@@ -34,6 +36,7 @@ export async function saveMatchResult(input: {
   home: number;
   away: number;
   penaltyWinnerTeamId?: number | null;
+  winnerTeamId?: number | null;
 }): Promise<AdminResult> {
   const { supabase, error: authErr } = await getAdminClient();
   if (authErr) return { ok: false, error: authErr };
@@ -41,18 +44,32 @@ export async function saveMatchResult(input: {
   const parsed = resultSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Marcador inválido (0–99)." };
 
-  if (parsed.data.penaltyWinnerTeamId != null) {
-    const { data: match } = await supabase
-      .from("matches")
-      .select("home_team_id, away_team_id")
-      .eq("id", parsed.data.matchId)
-      .maybeSingle();
-    if (
-      !match ||
-      (parsed.data.penaltyWinnerTeamId !== match.home_team_id &&
-        parsed.data.penaltyWinnerTeamId !== match.away_team_id)
-    ) {
-      return { ok: false, error: "Ese equipo no juega este partido." };
+  const { data: match } = await supabase
+    .from("matches")
+    .select("stage, home_team_id, away_team_id")
+    .eq("id", parsed.data.matchId)
+    .maybeSingle();
+  if (!match) return { ok: false, error: "Partido no encontrado." };
+
+  const validTeam = (id: number | null | undefined) =>
+    id == null || id === match.home_team_id || id === match.away_team_id;
+
+  if (!validTeam(parsed.data.penaltyWinnerTeamId) || !validTeam(parsed.data.winnerTeamId)) {
+    return { ok: false, error: "Ese equipo no juega este partido." };
+  }
+
+  // Quién avanza: si el marcador no está empatado, es obvio; si está
+  // empatado (solo puede pasar en eliminatoria, definido por penales o
+  // gol de oro), hay que haberlo indicado explícitamente.
+  let winnerTeamId: number | null = null;
+  if (match.stage !== "group") {
+    if (parsed.data.home !== parsed.data.away) {
+      winnerTeamId = parsed.data.home > parsed.data.away ? match.home_team_id : match.away_team_id;
+    } else {
+      winnerTeamId = parsed.data.winnerTeamId ?? parsed.data.penaltyWinnerTeamId ?? null;
+      if (!winnerTeamId) {
+        return { ok: false, error: "Partido empatado: indica quién avanza." };
+      }
     }
   }
 
@@ -62,14 +79,20 @@ export async function saveMatchResult(input: {
       home_score: parsed.data.home,
       away_score: parsed.data.away,
       penalty_winner_team_id: parsed.data.penaltyWinnerTeamId ?? null,
+      winner_team_id: winnerTeamId,
     },
     { onConflict: "match_id" },
   );
   if (error) return { ok: false, error: "No se pudo guardar el resultado." };
 
+  if (match.stage !== "group") {
+    await advanceBracket(supabase);
+  }
+
   revalidatePath("/admin");
   revalidatePath("/leaderboard");
   revalidatePath("/llave");
+  revalidatePath("/predicciones");
   return { ok: true };
 }
 
@@ -156,6 +179,7 @@ export async function createKnockoutMatch(input: {
     home_team_id: parsed.data.home_team_id,
     away_team_id: parsed.data.away_team_id,
     kickoff_at: kickoff.toISOString(),
+    bracket_slot: parsed.data.bracket_slot ?? null,
   });
   if (error) return { ok: false, error: "No se pudo crear el partido." };
 

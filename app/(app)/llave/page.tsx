@@ -24,7 +24,7 @@ export default async function LlavePage() {
     await Promise.all([
       supabase
         .from("matches")
-        .select("id,stage,home_team_id,away_team_id,kickoff_at")
+        .select("id,stage,home_team_id,away_team_id,kickoff_at,bracket_slot")
         .neq("stage", "group")
         .order("kickoff_at"),
       supabase.from("teams").select("id,name,flag_emoji,code"),
@@ -51,18 +51,17 @@ export default async function LlavePage() {
     const kickoffMs = new Date(m.kickoff_at).getTime();
     const seqIdx = (stageCounters.get(m.stage) ?? 0) + 1;
     stageCounters.set(m.stage, seqIdx);
-    const slot = getBracketSlot(m.id, m.stage, seqIdx);
+    const slot = getBracketSlot(m.id, m.stage, seqIdx, m.bracket_slot);
     return { m, home, away, result, pred, kickoffMs, slot };
   });
 
   const STAGE_ORDER: Record<string, number> = { r32: 0, r16: 1, qf: 2, sf: 3, final: 4 };
 
-  // Sort: by stage first, then by bracket slot for R32, then by kickoff for later rounds
+  // Sort: by stage first, then by bracket slot (matches the visual bracket order)
   const sortedMatches = [...allMatches].sort((a, b) => {
     const stageDiff = (STAGE_ORDER[a.m.stage] ?? 99) - (STAGE_ORDER[b.m.stage] ?? 99);
     if (stageDiff !== 0) return stageDiff;
-    if (a.m.stage === "r32") return a.slot - b.slot;
-    return a.kickoffMs - b.kickoffMs;
+    return a.slot - b.slot;
   });
 
   const bracketMatches: BracketMatchVM[] = sortedMatches.map(({ m, home, away, result, kickoffMs, slot }) => ({

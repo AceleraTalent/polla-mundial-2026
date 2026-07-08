@@ -57,6 +57,7 @@ export type MatchResult = {
   home_score: number;
   away_score: number;
   penalty_winner_team_id: number | null;
+  winner_team_id: number | null;
   updated_at: string;
 };
 

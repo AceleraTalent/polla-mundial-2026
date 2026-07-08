@@ -50,8 +50,20 @@ export const R16_BRACKET_SLOT: Record<number, number> = {
   112: 8, // Suiza vs Colombia               (ganadores slots 15+16)
 };
 
-/** Returns the bracket slot for a knockout match, defaulting to the fallback index. */
-export function getBracketSlot(matchId: number, stage: string, fallbackIndex: number): number {
+/**
+ * Returns the bracket slot for a knockout match. Prefers the value stored
+ * on the match row (matches.bracket_slot, set at creation time — always
+ * true for qf/sf/final, which are only ever auto-created with a slot).
+ * Falls back to the hardcoded R32/R16 maps for older rows, then to a
+ * sequential index as a last resort.
+ */
+export function getBracketSlot(
+  matchId: number,
+  stage: string,
+  fallbackIndex: number,
+  dbSlot?: number | null,
+): number {
+  if (dbSlot != null) return dbSlot;
   if (stage === "r32") return R32_BRACKET_SLOT[matchId] ?? fallbackIndex;
   if (stage === "r16") return R16_BRACKET_SLOT[matchId] ?? fallbackIndex;
   return fallbackIndex;

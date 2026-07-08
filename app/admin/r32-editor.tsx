@@ -30,7 +30,12 @@ export type KnockoutMatchVM = {
   home: { name: string; flag: string; id: number };
   away: { name: string; flag: string; id: number };
   kickoff_at: string;
-  result: { home: number; away: number; penaltyWinnerTeamId: number | null } | null;
+  result: {
+    home: number;
+    away: number;
+    penaltyWinnerTeamId: number | null;
+    winnerTeamId: number | null;
+  } | null;
 };
 
 // ── Result row for each knockout match ──────────────────────────────────────
@@ -38,9 +43,10 @@ export type KnockoutMatchVM = {
 function ResultRow({ match }: { match: KnockoutMatchVM }) {
   const [home, setHome] = useState(match.result ? String(match.result.home) : "");
   const [away, setAway] = useState(match.result ? String(match.result.away) : "");
-  const [penaltyWinner, setPenaltyWinner] = useState<string>(
-    match.result?.penaltyWinnerTeamId ? String(match.result.penaltyWinnerTeamId) : "",
+  const [winner, setWinner] = useState<string>(
+    match.result?.winnerTeamId ? String(match.result.winnerTeamId) : "",
   );
+  const [wasPenalties, setWasPenalties] = useState(match.result?.penaltyWinnerTeamId != null);
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useState(match.result != null);
   const [delPending, startDel] = useTransition();
@@ -50,12 +56,14 @@ function ResultRow({ match }: { match: KnockoutMatchVM }) {
 
   function onSave() {
     if (home === "" || away === "") { toast.error("Completa ambos marcadores."); return; }
+    if (isDraw && !winner) { toast.error("Partido empatado: indica quién avanza."); return; }
     startTransition(async () => {
       const res = await saveMatchResult({
         matchId: match.id,
         home: Number(home),
         away: Number(away),
-        penaltyWinnerTeamId: isDraw && penaltyWinner ? Number(penaltyWinner) : null,
+        winnerTeamId: isDraw && winner ? Number(winner) : null,
+        penaltyWinnerTeamId: isDraw && winner && wasPenalties ? Number(winner) : null,
       });
       if (res.ok) { setSaved(true); toast.success("Resultado guardado"); }
       else toast.error(res.error);
@@ -65,7 +73,10 @@ function ResultRow({ match }: { match: KnockoutMatchVM }) {
   function onClear() {
     startTransition(async () => {
       const res = await clearMatchResult(match.id);
-      if (res.ok) { setHome(""); setAway(""); setPenaltyWinner(""); setSaved(false); toast.success("Resultado borrado"); }
+      if (res.ok) {
+        setHome(""); setAway(""); setWinner(""); setWasPenalties(false); setSaved(false);
+        toast.success("Resultado borrado");
+      }
       else toast.error(res.error);
     });
   }
@@ -110,17 +121,25 @@ function ResultRow({ match }: { match: KnockoutMatchVM }) {
       </div>
 
       {isDraw && (
-        <div className="flex items-center gap-2 pl-10 text-xs">
-          <span className="text-muted-foreground">🎯 Ganador en penales:</span>
+        <div className="flex flex-wrap items-center gap-2 pl-10 text-xs">
+          <span className="font-semibold text-amber-700">⚠️ Empatado — ¿quién avanza?</span>
           <select
-            value={penaltyWinner}
-            onChange={(e) => setPenaltyWinner(e.target.value)}
+            value={winner}
+            onChange={(e) => setWinner(e.target.value)}
             className="h-8 rounded border bg-white px-2 text-xs"
           >
-            <option value="">— Sin definir —</option>
+            <option value="">— Selecciona —</option>
             <option value={match.home.id}>{match.home.flag} {match.home.name}</option>
             <option value={match.away.id}>{match.away.flag} {match.away.name}</option>
           </select>
+          <label className="flex items-center gap-1 text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={wasPenalties}
+              onChange={(e) => setWasPenalties(e.target.checked)}
+            />
+            🎯 Se definió por penales (+1 bono a quien acertó)
+          </label>
         </div>
       )}
     </div>

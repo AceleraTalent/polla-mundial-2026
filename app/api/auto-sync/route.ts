@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { advanceBracket } from "@/lib/knockout-advance";
 
 const ESPN_NAME_TO_CODE: Record<string, string> = {
   "Mexico": "MEX", "South Africa": "RSA", "South Korea": "KOR", "Czechia": "CZE",
@@ -49,7 +50,12 @@ async function fetchRegulationScore(
   }
 }
 
-type SyncedScore = { homeScore: number; awayScore: number; penaltyWinnerCode: string | null };
+type SyncedScore = {
+  homeScore: number;
+  awayScore: number;
+  penaltyWinnerCode: string | null;
+  winnerCode: string | null;
+};
 
 async function fetchESPNScores(dateStr: string): Promise<Map<string, SyncedScore>> {
   const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${dateStr}`;
@@ -89,15 +95,20 @@ async function fetchESPNScores(dateStr: string): Promise<Map<string, SyncedScore
       }
     }
 
-    // Ganador de la tanda de penales (si aplica): ESPN marca `winner: true`
-    // en el competitor que avanzó, aunque el marcador haya quedado empatado.
-    const penaltyWinnerCode =
-      comp.status?.type?.name === "STATUS_FINAL_PEN"
-        ? (home.winner ? homeCode : away.winner ? awayCode : null)
-        : null;
+    // ESPN marca `winner: true` en el competitor que avanzó — sirve tanto
+    // para saber quién gana la tanda de penales (bono +1) como, en general,
+    // quién avanza a la siguiente fase (incluso si quedó empatado en el
+    // marcador de 90 min por haberse definido en tiempo extra).
+    const winnerCode = home.winner ? homeCode : away.winner ? awayCode : null;
+    const penaltyWinnerCode = comp.status?.type?.name === "STATUS_FINAL_PEN" ? winnerCode : null;
 
-    scores.set(`${homeCode}-${awayCode}`, { homeScore, awayScore, penaltyWinnerCode });
-    scores.set(`${awayCode}-${homeCode}`, { homeScore: awayScore, awayScore: homeScore, penaltyWinnerCode });
+    scores.set(`${homeCode}-${awayCode}`, { homeScore, awayScore, penaltyWinnerCode, winnerCode });
+    scores.set(`${awayCode}-${homeCode}`, {
+      homeScore: awayScore,
+      awayScore: homeScore,
+      penaltyWinnerCode,
+      winnerCode,
+    });
   }));
   return scores;
 }
@@ -141,24 +152,27 @@ async function runSync() {
     for (const [key, val] of scores) allScores.set(key, val);
   }));
 
-  const upserts: { match_id: number; home_score: number; away_score: number; penalty_winner_team_id: number | null }[] = [];
+  const upserts: {
+    match_id: number;
+    home_score: number;
+    away_score: number;
+    penalty_winner_team_id: number | null;
+    winner_team_id: number | null;
+  }[] = [];
   for (const match of pending) {
     const home = (match.home_team as unknown as { code: string } | null)?.code;
     const away = (match.away_team as unknown as { code: string } | null)?.code;
     if (!home || !away) continue;
     const score = allScores.get(`${home}-${away}`);
     if (!score) continue;
-    const penaltyWinnerTeamId =
-      score.penaltyWinnerCode === home
-        ? match.home_team_id
-        : score.penaltyWinnerCode === away
-          ? match.away_team_id
-          : null;
+    const resolveCode = (code: string | null) =>
+      code === home ? match.home_team_id : code === away ? match.away_team_id : null;
     upserts.push({
       match_id: match.id,
       home_score: score.homeScore,
       away_score: score.awayScore,
-      penalty_winner_team_id: penaltyWinnerTeamId,
+      penalty_winner_team_id: resolveCode(score.penaltyWinnerCode),
+      winner_team_id: resolveCode(score.winnerCode),
     });
   }
 
@@ -172,7 +186,9 @@ async function runSync() {
 
   if (error) throw new Error(error.message);
 
-  return { ok: true, updated: upserts.length, matches: upserts };
+  const { created } = await advanceBracket(supabase);
+
+  return { ok: true, updated: upserts.length, matches: upserts, bracketAdvanced: created };
 }
 
 // GET — called by Vercel Cron (no auth header, internal only)
