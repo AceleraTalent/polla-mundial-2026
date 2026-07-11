@@ -6,7 +6,7 @@ import { LlaveClient } from "./llave-client";
 
 export const dynamic = "force-dynamic";
 
-const CUTOFF_MS = 60 * 60 * 1000;
+const CUTOFF_MS = 15 * 60 * 1000;
 
 const STAGE_LABELS: Record<string, string> = {
   r32:   "32avos de Final",

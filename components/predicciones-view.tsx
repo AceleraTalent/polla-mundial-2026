@@ -238,7 +238,7 @@ export function PrediccionesView({
                         )}
                         {!m.locked && (
                           <span className="text-xs text-emerald-600 font-semibold">
-                            Abierto — cierra 1h antes
+                            Abierto — cierra 15 min antes
                           </span>
                         )}
                       </div>

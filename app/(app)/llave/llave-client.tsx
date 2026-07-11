@@ -83,7 +83,7 @@ export function LlaveClient({
                       <span className="text-xs text-zinc-400">🔒 Cerrado</span>
                     ) : (
                       <span className="text-xs font-semibold text-emerald-600">
-                        🔓 Abierto — cierra 1h antes
+                        🔓 Abierto — cierra 15 min antes
                       </span>
                     )}
                   </div>

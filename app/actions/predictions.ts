@@ -55,16 +55,16 @@ export async function savePrediction(input: {
     });
     if (!open) return { ok: false, error: "Esta jornada está cerrada." };
   } else {
-    // Eliminatoria: cierra 1 hora antes del pitazo (check en servidor)
+    // Eliminatoria: cierra 15 minutos antes del pitazo (check en servidor)
     const { data: matchKickoff } = await supabase
       .from("matches")
       .select("kickoff_at")
       .eq("id", matchId)
       .maybeSingle();
     if (!matchKickoff) return { ok: false, error: "Partido no encontrado." };
-    const cutoff = new Date(matchKickoff.kickoff_at).getTime() - 60 * 60 * 1000;
+    const cutoff = new Date(matchKickoff.kickoff_at).getTime() - 15 * 60 * 1000;
     if (Date.now() >= cutoff) {
-      return { ok: false, error: "Este partido ya cerró (cierra 1h antes del pitazo)." };
+      return { ok: false, error: "Este partido ya cerró (cierra 15 min antes del pitazo)." };
     }
   }
 

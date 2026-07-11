@@ -15,7 +15,7 @@ const locksFmt = new Intl.DateTimeFormat("es", {
 });
 
 const COLOMBIA_CODE = "COL";
-const CUTOFF_MS = 60 * 60 * 1000; // 1 hour in ms
+const CUTOFF_MS = 15 * 60 * 1000; // 15 minutes in ms
 
 export default async function PrediccionesPage() {
   const { user } = await requireOnboarded();
