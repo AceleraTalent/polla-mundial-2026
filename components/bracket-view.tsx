@@ -262,6 +262,7 @@ export function BracketView({ matches }: { matches: BracketMatchVM[] }) {
   const sfRight  = [getMatch(slotMap, "sf", 2)];
 
   const finalMatch = getMatch(slotMap, "final", 1);
+  const thirdPlaceMatch = getMatch(slotMap, "third_place", 1);
 
   return (
     <div style={{ overflowX: "auto", paddingBottom: 16 }}>
@@ -311,6 +312,14 @@ export function BracketView({ matches }: { matches: BracketMatchVM[] }) {
         <RoundConnector pairCount={4} dir="left" />
         <BracketColumn matches={r32Right} slotH={ITEM_H} />
       </div>
+
+      {/* Tercer y cuarto puesto — no forma parte del árbol, se muestra aparte */}
+      {thirdPlaceMatch && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 16 }}>
+          <RoundLabel label="🥉 3er Puesto" width={CARD_W} />
+          <BracketCard match={thirdPlaceMatch} />
+        </div>
+      )}
     </div>
   );
 }

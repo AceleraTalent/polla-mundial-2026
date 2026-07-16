@@ -20,11 +20,12 @@ const badgeStyle: Record<WindowStatus, string> = {
 };
 
 const STAGE_LABELS: Record<string, string> = {
-  r32:   "32avos de Final",
-  r16:   "Octavos de Final",
-  qf:    "Cuartos de Final",
-  sf:    "Semifinales",
-  final: "Final",
+  r32:         "32avos de Final",
+  r16:         "Octavos de Final",
+  qf:          "Cuartos de Final",
+  sf:          "Semifinales",
+  third_place: "Tercer y Cuarto Puesto",
+  final:       "Final",
 };
 
 const kickoffFmt = new Intl.DateTimeFormat("es-CO", {
@@ -72,7 +73,7 @@ export function PrediccionesView({
     groupFilter === "Todos" ? groups : groups.filter((g) => g === groupFilter);
 
   // Group knockout matches by stage (in bracket order)
-  const knockoutStages = ["r32", "r16", "qf", "sf", "final"];
+  const knockoutStages = ["r32", "r16", "qf", "sf", "third_place", "final"];
   const knockoutByStage = knockoutStages
     .map((stage) => ({
       stage,

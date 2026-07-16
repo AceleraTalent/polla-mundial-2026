@@ -9,11 +9,12 @@ export const dynamic = "force-dynamic";
 const CUTOFF_MS = 15 * 60 * 1000;
 
 const STAGE_LABELS: Record<string, string> = {
-  r32:   "32avos de Final",
-  r16:   "Octavos de Final",
-  qf:    "Cuartos de Final",
-  sf:    "Semifinales",
-  final: "Final",
+  r32:         "32avos de Final",
+  r16:         "Octavos de Final",
+  qf:          "Cuartos de Final",
+  sf:          "Semifinales",
+  third_place: "Tercer y Cuarto Puesto",
+  final:       "Final",
 };
 
 export default async function LlavePage() {
@@ -55,7 +56,7 @@ export default async function LlavePage() {
     return { m, home, away, result, pred, kickoffMs, slot };
   });
 
-  const STAGE_ORDER: Record<string, number> = { r32: 0, r16: 1, qf: 2, sf: 3, final: 4 };
+  const STAGE_ORDER: Record<string, number> = { r32: 0, r16: 1, qf: 2, sf: 3, third_place: 4, final: 5 };
 
   // Sort: by stage first, then by bracket slot (matches the visual bracket order)
   const sortedMatches = [...allMatches].sort((a, b) => {
@@ -93,7 +94,7 @@ export default async function LlavePage() {
     actualPenaltyWinnerTeamId: result?.penalty_winner_team_id ?? null,
   }));
 
-  const stages = ["r32", "r16", "qf", "sf", "final"] as const;
+  const stages = ["r32", "r16", "qf", "sf", "third_place", "final"] as const;
   const byStage = stages
     .map((stage) => ({
       stage,

@@ -23,7 +23,7 @@ export type Team = {
 
 export type Match = {
   id: number;
-  stage: "group" | "r32" | "r16" | "qf" | "sf" | "final";
+  stage: "group" | "r32" | "r16" | "qf" | "sf" | "final" | "third_place";
   group_letter: string | null;
   matchday: number | null;
   bracket_slot: number | null;

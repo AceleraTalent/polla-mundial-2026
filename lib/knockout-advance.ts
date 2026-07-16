@@ -17,6 +17,9 @@ type BracketEdge = {
   toSlot: number;
   fromSlots: [number, number];
   kickoffAt: string;
+  /** Qué equipo alimenta el cruce: el que gana (default) o el que pierde
+   *  (el partido por el tercer puesto lo juegan los perdedores de semis). */
+  feeds?: "winner" | "loser";
 };
 
 const BRACKET_EDGES: BracketEdge[] = [
@@ -27,6 +30,7 @@ const BRACKET_EDGES: BracketEdge[] = [
   { fromStage: "qf", toStage: "sf", toSlot: 1, fromSlots: [1, 2], kickoffAt: "2026-07-14T19:00:00Z" },
   { fromStage: "qf", toStage: "sf", toSlot: 2, fromSlots: [3, 4], kickoffAt: "2026-07-15T19:00:00Z" },
   { fromStage: "sf", toStage: "final", toSlot: 1, fromSlots: [1, 2], kickoffAt: "2026-07-19T19:00:00Z" },
+  { fromStage: "sf", toStage: "third_place", toSlot: 1, fromSlots: [1, 2], kickoffAt: "2026-07-18T21:00:00Z", feeds: "loser" },
 ];
 
 /**
@@ -46,14 +50,29 @@ export async function advanceBracket(admin: SupabaseClient): Promise<{ created: 
   const { data: results } = await admin.from("match_results").select("match_id, winner_team_id");
 
   const winnerByMatch = new Map((results ?? []).map((r) => [r.match_id, r.winner_team_id]));
-
-  // stage -> slot -> { winnerTeamId }
-  const slotMap = new Map<string, Map<number, number | null>>();
-  for (const m of matches ?? []) {
-    if (m.bracket_slot == null) continue;
-    if (!slotMap.has(m.stage)) slotMap.set(m.stage, new Map());
-    slotMap.get(m.stage)!.set(m.bracket_slot, winnerByMatch.get(m.id) ?? null);
+  const matchById = new Map((matches ?? []).map((m) => [m.id, m]));
+  const loserByMatch = new Map<number, number | null>();
+  for (const [matchId, winnerTeamId] of winnerByMatch) {
+    const m = matchById.get(matchId);
+    if (!m || winnerTeamId == null) continue;
+    loserByMatch.set(
+      matchId,
+      winnerTeamId === m.home_team_id ? m.away_team_id : m.home_team_id,
+    );
   }
+
+  // stage -> slot -> teamId, uno para ganadores y otro para perdedores
+  function buildSlotMap(source: Map<number, number | null>) {
+    const map = new Map<string, Map<number, number | null>>();
+    for (const m of matches ?? []) {
+      if (m.bracket_slot == null) continue;
+      if (!map.has(m.stage)) map.set(m.stage, new Map());
+      map.get(m.stage)!.set(m.bracket_slot, source.get(m.id) ?? null);
+    }
+    return map;
+  }
+  const winnerSlotMap = buildSlotMap(winnerByMatch);
+  const loserSlotMap = buildSlotMap(loserByMatch);
 
   // stage -> set of existing bracket_slot (para no duplicar)
   const existingSlots = new Map<string, Set<number>>();
@@ -68,17 +87,17 @@ export async function advanceBracket(admin: SupabaseClient): Promise<{ created: 
   for (const edge of BRACKET_EDGES) {
     if (existingSlots.get(edge.toStage)?.has(edge.toSlot)) continue;
 
-    const fromSlots = slotMap.get(edge.fromStage);
-    const homeWinner = fromSlots?.get(edge.fromSlots[0]);
-    const awayWinner = fromSlots?.get(edge.fromSlots[1]);
-    if (!homeWinner || !awayWinner) continue;
+    const fromSlots = (edge.feeds === "loser" ? loserSlotMap : winnerSlotMap).get(edge.fromStage);
+    const homeTeam = fromSlots?.get(edge.fromSlots[0]);
+    const awayTeam = fromSlots?.get(edge.fromSlots[1]);
+    if (!homeTeam || !awayTeam) continue;
 
     const { data: inserted, error } = await admin
       .from("matches")
       .insert({
         stage: edge.toStage,
-        home_team_id: homeWinner,
-        away_team_id: awayWinner,
+        home_team_id: homeTeam,
+        away_team_id: awayTeam,
         kickoff_at: edge.kickoffAt,
         bracket_slot: edge.toSlot,
       })

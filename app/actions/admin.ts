@@ -151,7 +151,7 @@ export async function saveTournamentResults(input: {
 // Partidos eliminatorios (R32, R16, QF…)     //
 // ------------------------------------------ //
 const knockoutMatchSchema = z.object({
-  stage: z.enum(["r32", "r16", "qf", "sf", "final"]),
+  stage: z.enum(["r32", "r16", "qf", "sf", "final", "third_place"]),
   home_team_id: z.coerce.number().int().positive(),
   away_team_id: z.coerce.number().int().positive(),
   kickoff_at: z.string().min(1),

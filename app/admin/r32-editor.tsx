@@ -12,6 +12,7 @@ const STAGE_LABELS: Record<string, string> = {
   r16: "Octavos de Final",
   qf: "Cuartos de Final",
   sf: "Semifinales",
+  third_place: "Tercer y Cuarto Puesto",
   final: "Final",
 };
 
@@ -20,6 +21,7 @@ const SLOT_MAX: Record<string, number> = {
   r16: 8,
   qf: 4,
   sf: 2,
+  third_place: 1,
   final: 1,
 };
 
@@ -259,7 +261,7 @@ export function R32Editor({
   teams: Team[];
   matches: KnockoutMatchVM[];
 }) {
-  const stages = ["r32", "r16", "qf", "sf", "final"] as const;
+  const stages = ["r32", "r16", "qf", "sf", "third_place", "final"] as const;
 
   return (
     <div className="space-y-6">

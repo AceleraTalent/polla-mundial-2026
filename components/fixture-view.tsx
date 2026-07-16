@@ -32,11 +32,12 @@ const GROUP_VENUES: Record<string, [string, string]> = {
 };
 
 const STAGE_LABELS: Record<string, string> = {
-  r32:   "32avos de Final",
-  r16:   "Octavos de Final",
-  qf:    "Cuartos de Final",
-  sf:    "Semifinales",
-  final: "Final",
+  r32:         "32avos de Final",
+  r16:         "Octavos de Final",
+  qf:          "Cuartos de Final",
+  sf:          "Semifinales",
+  third_place: "Tercer y Cuarto Puesto",
+  final:       "Final",
 };
 
 function getVenue(group: string, matchday: number, isFirstOfDay: boolean): string {
@@ -152,7 +153,7 @@ export function FixtureView({ matches }: { matches: MatchVM[] }) {
   ];
 
   // Group knockout stages present
-  const knockoutStages = ["r32", "r16", "qf", "sf", "final"].filter((s) =>
+  const knockoutStages = ["r32", "r16", "qf", "sf", "third_place", "final"].filter((s) =>
     knockoutMatches.some((m) => m.stage === s),
   );
 
